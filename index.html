@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cards Against All Sanity</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Cards Against All Sanity</h1>
+
+        <div id="menu">
+            <div id="create-game-view">
+                <h2>Create Game</h2>
+                <input type="text" id="create-name" placeholder="Your Name" maxlength="15">
+                <div class="game-options">
+                    <label>Score to Win:</label>
+                    <input type="number" id="win-target" value="7" min="3" max="20">
+                    <label>
+                        <input type="checkbox" id="endless-mode"> Endless Mode
+                    </label>
+                </div>
+                <button id="create-btn">Create</button>
+            </div>
+
+            <div id="join-game-view" style="display: none;">
+                <h2>Join Game</h2>
+                <input type="text" id="join-name" placeholder="Your Name" maxlength="15">
+                <input type="text" id="game-code-input" placeholder="Game Code (4 letters)" maxlength="4">
+                <button id="join-btn">Join</button>
+            </div>
+            
+            <p id="error-message" class="error"></p>
+            <a href="#" id="toggle-view-link">Want to join a game instead?</a>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
