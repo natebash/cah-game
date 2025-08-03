@@ -238,6 +238,11 @@ socket.on('gameOver', ({ reason, winner }) => {
     }
 });
 
+socket.on('youWereKicked', () => {
+    alert("You have been kicked from the game by the host.");
+    window.location.href = '/';
+});
+
 socket.on('errorMsg', (msg) => {
     const errorEl = document.getElementById('error-message');
     if (errorEl) {
@@ -382,14 +387,27 @@ function renderPlayer() {
         document.getElementById('player-status').textContent = "Waiting for players to join...";
         
         const playerList = document.getElementById('player-list');
-        playerList.innerHTML = gameState.players
-            .filter(p => p.name !== 'TV_BOARD')
-            .map(p => {
-                const hostIndicator = p.id === gameState.hostId ? ' (Host)' : '';
-                const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
-                const classes = p.disconnected ? 'class="disconnected"' : '';
-                return `<li ${classes}>${p.name}${hostIndicator}${disconnectedIndicator}</li>`;
-            }).join('');
+        playerList.innerHTML = ''; // Clear the list
+
+        gameState.players.filter(p => p.name !== 'TV_BOARD').forEach(player => {
+            const li = document.createElement('li');
+            const hostIndicator = player.id === gameState.hostId ? ' (Host)' : '';
+            const disconnectedIndicator = player.disconnected ? ' (disconnected)' : '';
+            li.textContent = `${player.name}${hostIndicator}${disconnectedIndicator}`;
+            if (player.disconnected) {
+                li.classList.add('disconnected');
+            }
+
+            // Add a kick button if the current user is the host and the player is not the host
+            if (isHost && player.id !== socket.id) {
+                const kickBtn = document.createElement('button');
+                kickBtn.textContent = 'Kick';
+                kickBtn.className = 'kick-btn';
+                kickBtn.onclick = () => socket.emit('kickPlayer', { code: gameState.code, playerIdToKick: player.id });
+                li.appendChild(kickBtn);
+            }
+            playerList.appendChild(li);
+        });
 
         const startGameContainer = document.getElementById('start-game-container');
         const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);

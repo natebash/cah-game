@@ -198,6 +198,23 @@ button:hover {
     border-bottom: none;
 }
 
+.kick-btn {
+    float: right;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    background-color: #c0392b;
+    width: auto;
+    margin-top: -5px;
+}
+
+.kick-btn:hover {
+    background-color: #a93226;
+}
+
+#lobby-view ul li {
+    overflow: hidden; /* This helps contain the floated button */
+}
+
 .card-group.czar-selected {
     border: 3px solid #f9a825; /* Gold border */
     border-radius: 15px;

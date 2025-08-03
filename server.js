@@ -205,6 +205,19 @@ io.on('connection', (socket) => {
         io.to(data.code).emit('gameUpdate', game);
     });
     
+    socket.on('kickPlayer', (data) => {
+        const game = games[data.code];
+        // Ensure the request is from the host and the game is in the waiting state
+        if (game && game.hostId === socket.id && game.state === 'waiting') {
+            const playerIndex = game.players.findIndex(p => p.id === data.playerIdToKick);
+            if (playerIndex > -1) {
+                const kickedPlayer = game.players.splice(playerIndex, 1)[0];
+                io.to(kickedPlayer.id).emit('youWereKicked');
+                io.to(data.code).emit('gameUpdate', game); // Update everyone else
+            }
+        }
+    });
+
     socket.on('startGame', (gameCode) => {
         const game = games[gameCode];
         if (game && socket.id === game.hostId) {
