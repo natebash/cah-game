@@ -101,16 +101,22 @@ function setupIndexPage() {
 }
 
 function setupPlayerPage() {
-    document.getElementById('start-game-btn')?.addEventListener('click', () => {
-        socket.emit('startGame', getGameCodeFromURL());
-    });
+    const startGameBtn = document.getElementById('start-game-btn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            socket.emit('startGame', getGameCodeFromURL());
+        });
+    }
 
-    document.getElementById('submit-cards-btn')?.addEventListener('click', () => {
-        if (selectedCards.length > 0) {
-            socket.emit('submitCard', { code: gameState.code, cards: selectedCards });
-            document.getElementById('submit-button-container').style.display = 'none';
-        }
-    });
+    const submitCardsBtn = document.getElementById('submit-cards-btn');
+    if (submitCardsBtn) {
+        submitCardsBtn.addEventListener('click', () => {
+            if (selectedCards.length > 0) {
+                socket.emit('submitCard', { code: gameState.code, cards: selectedCards });
+                document.getElementById('submit-button-container').style.display = 'none';
+            }
+        });
+    }
 }
 
 function setupBoardPage() {
@@ -142,7 +148,11 @@ socket.on('gameOver', ({ reason, winner }) => {
         }
         announcement.innerHTML = message;
         announcement.style.display = 'block';
-        document.getElementById('round-area')?.style.display = 'none';
+
+        const roundArea = document.getElementById('round-area');
+        if (roundArea) {
+            roundArea.style.display = 'none';
+        }
     }
 });
 
@@ -225,7 +235,7 @@ function renderPlayer() {
         const playerList = document.getElementById('player-list');
         playerList.innerHTML = gameState.players
             .filter(p => p.name !== 'TV_BOARD')
-            .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join(''); // << THE FIX WAS HERE
+            .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join('');
 
         document.getElementById('start-game-container').style.display = isHost ? 'block' : 'none';
     } else {
@@ -265,7 +275,7 @@ function renderPlayer() {
                 playerStatus.textContent = "You are the Card Czar. Sit back and wait.";
             }
         } else {
-            const pickCount = gameState.currentBlackCard?.pick || 1;
+            const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
             if (submitted) {
                 playerStatus.textContent = 'Your submission is in. Waiting for others.';
             } else if (gameState.state === 'playing') {
