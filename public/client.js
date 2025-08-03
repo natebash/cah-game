@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-join if game code is in URL
     const gameCode = getGameCodeFromURL();
     if (gameCode) {
-        socket.on('connect', () => { // Wait for connection before joining
+        const join = () => {
             myPlayerId = socket.id;
             if (page.includes('board.html')) {
                 socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
@@ -52,7 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
                 }
             }
-        });
+        };
+
+        if (socket.connected) {
+            join();
+        } else {
+            socket.on('connect', join);
+        }
     }
 });
 
