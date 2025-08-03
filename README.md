@@ -8,7 +8,7 @@ A web-based, real-time multiplayer card game inspired by the classic party game,
 
 - **Real-time Multiplayer:** Gameplay is synchronized for all players using WebSockets (Socket.IO).
 - **Game Rooms:** Create a game and invite friends with a unique 4-letter game code.
-- **Dedicated Board View:** A special view designed for a central TV or shared screen, showing the black card, submissions, and scoreboard.
+- **Dedicated Score Board View:** A special view designed for a central TV or shared screen, showing the black card, submissions, and scoreboard.
 - **Player & Host Roles:** The first player to create a game is the host and can start the game and kick players from the lobby.
 - **Card Czar Rotation:** The role of the judge (Card Czar) automatically rotates to the next player each round.
 - **Score Tracking:** The game automatically keeps score and declares a winner at the end.
@@ -47,7 +47,7 @@ To run this project locally, you will need [Node.js](https://nodejs.org/) and np
 1.  **Create or Join:**
     - One player selects "Create Game" to start a new lobby and becomes the host.
     - Other players select "Join Game," enter their name, and input the 4-letter game code provided by the host.
-    - Optionally, one person can "Join as Board" on a laptop connected to a TV to display the main game board for everyone to see.
+    - Optionally, set up a score borad on a laptop connected to a TV to display the main game board for everyone to see.
 
 2.  **The Goal:**
     - The goal is to create the funniest or most fitting combination of white answer cards for the black question card.
