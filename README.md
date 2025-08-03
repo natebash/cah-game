@@ -75,3 +75,5 @@ To run this project locally, you will need [Node.js](https://nodejs.org/) and np
 This is an unofficial fan project and is not affiliated with, sponsored, or endorsed by Cards Against Humanity, LLC.
 
 The card content used in this project is based on the game *Cards Against Humanity*, which is distributed under a Creative Commons BY-NC-SA 4.0 license. This project adheres to the terms of that license.
+
+The JSON card data was compiled by Chris Hallberg and is available at [crhallberg.com](https://www.crhallberg.com/).
