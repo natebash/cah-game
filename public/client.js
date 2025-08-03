@@ -18,28 +18,29 @@ function navigateTo(page, gameCode) {
 
 // --- DOM ELEMENTS & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
-    myPlayerId = socket.id;
     const page = window.location.pathname;
 
     if (page === '/' || page.includes('index.html')) {
         setupIndexPage();
     } else if (page.includes('player.html')) {
         setupPlayerPage();
-    } else if (page.includes('board.html')) {
-        setupBoardPage();
     }
 
     // Auto-join if game code is in URL
     const gameCode = getGameCodeFromURL();
     if (gameCode) {
-        if (page.includes('board.html')) {
-            socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
-        } else if (page.includes('player.html')) {
-            const playerName = sessionStorage.getItem('playerName');
-            if (playerName) {
-                socket.emit('joinGame', { code: gameCode, name: playerName });
+        socket.on('connect', () => { // Wait for connection before joining
+            myPlayerId = socket.id;
+            if (page.includes('board.html')) {
+                socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
+            } else if (page.includes('player.html')) {
+                const playerName = sessionStorage.getItem('playerName');
+                const hostToken = sessionStorage.getItem('hostToken');
+                if (playerName) {
+                    socket.emit('joinGame', { code: gameCode, name: playerName, token: hostToken });
+                }
             }
-        }
+        });
     }
 });
 
@@ -84,6 +85,8 @@ function setupIndexPage() {
         const code = document.getElementById('game-code-input-player').value.toUpperCase();
         if (name && code) {
             sessionStorage.setItem('playerName', name);
+            // We don't want to carry over a host token if we are a regular player
+            sessionStorage.removeItem('hostToken');
             navigateTo('player.html', code);
         }
     });
@@ -119,19 +122,24 @@ function setupPlayerPage() {
     }
 }
 
-function setupBoardPage() {
-    // Board has no interactive elements to set up initially
-}
-
-
 // --- SOCKET.IO HANDLERS ---
-socket.on('gameCreated', (game) => {
-    sessionStorage.setItem('playerName', game.players[0].name);
-    navigateTo('player.html', game.code);
+socket.on('gameCreated', (data) => {
+    sessionStorage.setItem('playerName', data.name);
+    sessionStorage.setItem('hostToken', data.token); // Save the host token
+    navigateTo('player.html', data.code);
 });
 
 socket.on('gameUpdate', (game) => {
     gameState = game;
+    // Reset selection on update unless we are in the middle of judging
+    if (gameState.state !== 'judging') {
+        const me = gameState.players.find(p => p.id === socket.id);
+        const submitted = me && !!gameState.submissions[me.id];
+        if(!submitted) {
+            selectedCards = [];
+        }
+    }
+
     if (window.location.pathname.includes('board.html')) {
         renderBoard();
     } else if (window.location.pathname.includes('player.html')) {
@@ -158,8 +166,11 @@ socket.on('gameOver', ({ reason, winner }) => {
 
 socket.on('errorMsg', (msg) => {
     const errorEl = document.getElementById('error-message');
-    if (errorEl) errorEl.textContent = msg;
-    else alert(msg);
+    if (errorEl) {
+        errorEl.textContent = msg;
+    } else {
+        alert(msg);
+    }
 });
 
 // --- RENDER FUNCTIONS ---
@@ -178,7 +189,9 @@ function renderBoard() {
         document.getElementById('waiting-area').style.display = 'none';
         document.getElementById('round-area').style.display = 'block';
 
-        document.getElementById('black-card-text').innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
+        if (gameState.currentBlackCard) {
+            document.getElementById('black-card-text').innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
+        }
 
         const submissionsArea = document.getElementById('submissions-area');
         submissionsArea.innerHTML = '';
@@ -222,9 +235,12 @@ function renderPlayer() {
     document.getElementById('player-score').textContent = me.score;
     const isHost = gameState.hostId === socket.id;
 
+    const gameCodeBox = document.getElementById('game-code-box');
     if (isHost) {
-        document.getElementById('game-code-box').style.display = 'block';
+        gameCodeBox.style.display = 'block';
         document.getElementById('game-code-display').textContent = gameState.code;
+    } else {
+        gameCodeBox.style.display = 'none';
     }
 
     if (gameState.state === 'waiting') {
@@ -237,13 +253,21 @@ function renderPlayer() {
             .filter(p => p.name !== 'TV_BOARD')
             .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join('');
 
-        document.getElementById('start-game-container').style.display = isHost ? 'block' : 'none';
+        const startGameContainer = document.getElementById('start-game-container');
+        const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD');
+        if (isHost && activePlayers.length >= 2) {
+            startGameContainer.style.display = 'block';
+        } else {
+            startGameContainer.style.display = 'none';
+        }
     } else {
         document.getElementById('lobby-view').style.display = 'none';
         document.getElementById('game-view').style.display = 'block';
 
         const blackCardTextPlayer = document.getElementById('black-card-text-player');
-        blackCardTextPlayer.innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
+        if (gameState.currentBlackCard) {
+            blackCardTextPlayer.innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
+        }
         
         const isCzar = gameState.currentCzar === socket.id;
         const submitted = !!gameState.submissions[socket.id];

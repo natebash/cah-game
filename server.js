@@ -4,6 +4,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto'); // For generating the token
 
 const app = express();
 const server = http.createServer(app);
@@ -56,6 +57,8 @@ function shuffle(array) {
 function firstRound(gameCode) {
     const game = games[gameCode];
     if (!game) return;
+    const activePlayers = game.players.filter(p => p.name !== 'TV_BOARD');
+    if (activePlayers.length < 2) return; // Don't start with less than 2 players
 
     game.state = 'playing';
     
@@ -123,11 +126,13 @@ io.on('connection', (socket) => {
     socket.on('createGame', (data) => {
         const { name, winTarget, isEndless } = data;
         const gameCode = generateGameCode();
+        const hostToken = crypto.randomBytes(16).toString('hex');
         
         games[gameCode] = {
             code: gameCode,
-            hostId: socket.id,
-            players: [{ id: socket.id, name: name, score: 0, hand: [] }],
+            hostId: null, // Will be set when host joins with token
+            hostToken: hostToken,
+            players: [], // Host will join like a regular player
             state: 'waiting',
             round: 0,
             winTarget: isEndless ? null : parseInt(winTarget, 10) || 7,
@@ -140,28 +145,27 @@ io.on('connection', (socket) => {
             whiteDeck: shuffle([...allWhiteCards]),
             blackDeck: shuffle([...allBlackCards])
         };
-        socket.join(gameCode);
-        socket.emit('gameCreated', games[gameCode]);
+        socket.emit('gameCreated', { code: gameCode, token: hostToken, name: name });
     });
 
     socket.on('joinGame', (data) => {
         const game = games[data.code];
-        if (!game) return socket.emit('errorMsg', 'Game not found.');
-        if (game.players.some(p => p.id === socket.id)) return;
+        if (!game) {
+            return socket.emit('errorMsg', 'Game not found.');
+        }
+
         if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase())) {
             return socket.emit('errorMsg', 'That name is already taken.');
         }
-
-        socket.join(data.code);
-        const player = { id: socket.id, name: data.name, score: 0, hand: [] };
         
-        if (game.state !== 'waiting') {
-            for(let i=0; i<10; i++){
-                if(game.whiteDeck.length > 0) player.hand.push(game.whiteDeck.pop());
-            }
+        // Correctly assign hostId if the token matches
+        if (data.token && data.token === game.hostToken && !game.hostId) {
+            game.hostId = socket.id;
         }
         
+        const player = { id: socket.id, name: data.name, score: 0, hand: [] };
         game.players.push(player);
+        socket.join(data.code);
         io.to(data.code).emit('gameUpdate', game);
     });
     
@@ -225,7 +229,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // This is the full disconnect logic
     socket.on('disconnect', () => {
         for (const code in games) {
             const game = games[code];
@@ -240,11 +243,15 @@ io.on('connection', (socket) => {
                 if (remainingPlayers.length < 2 && game.state !== 'waiting') {
                     endGame(code, "Not enough players left to continue.");
                 } else {
-                    // If the Czar disconnects mid-round, start a new round
+                    if (disconnectedPlayer.id === game.hostId) {
+                        // If host leaves, assign a new host to the first player
+                        if (remainingPlayers.length > 0) {
+                            game.hostId = remainingPlayers[0].id;
+                        }
+                    }
                     if (disconnectedPlayer.id === game.currentCzar && game.state !== 'waiting') {
                         startNewRound(code);
                     } else {
-                        // Otherwise, just update everyone
                         io.to(code).emit('gameUpdate', game);
                     }
                 }
