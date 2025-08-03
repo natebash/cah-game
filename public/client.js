@@ -20,7 +20,7 @@ function navigateTo(page, gameCode) {
 function sanitizeGameCodeInput(inputId) {
     const input = document.getElementById(inputId);
     if (input) {
-        input.addEventListener('input', (e) => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''));
+        input.addEventListener('input', (e) => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
     }
 }
 
