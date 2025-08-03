@@ -14,7 +14,7 @@ A web-based, real-time multiplayer card game inspired by the classic party game,
 - **Score Tracking:** The game automatically keeps score and declares a winner at the end.
 - **Two Game Modes:**
   - **Score Limit:** The game ends when a player reaches a predefined score.
-  - **Endless Mode:** The game continues until a majority of players vote to end it.
+  - **Endless Mode:** The game continues until a vote is initiated and all active players unanimously agree to end it.
 - **Player Reconnection:** If a player's connection drops, they have a 2-minute window to rejoin the game with their score and cards intact.
 - **Kicking Players:** The host can remove players from the lobby before the game begins.
 
@@ -62,7 +62,7 @@ To run this project locally, you will need [Node.js](https://nodejs.org/) and np
 
 4.  **Winning the Game:**
     - If playing to a score limit, the first player to reach that score wins.
-    - In Endless Mode, the game continues until a majority of players vote to end it. The player with the highest score at that time is the winner.
+    - In Endless Mode, the game continues until players unanimously vote to end it. The player with the highest score at that time is the winner.
 
 ## 🛠️ Technology Stack
 

@@ -131,6 +131,48 @@ function setupBoardPage() {
     sanitizeGameCodeInput('game-code-input-board-new');
 }
 
+function showNotification(message, duration = 4000) {
+    const banner = document.getElementById('notification-banner');
+    if (!banner) return;
+
+    banner.textContent = message;
+    banner.style.display = 'block';
+    // Use a timeout to trigger the fade-in and slide-down transition
+    setTimeout(() => {
+        banner.style.opacity = 1;
+        banner.style.transform = 'translateY(0)';
+    }, 10);
+
+    // Hide the banner after a delay
+    setTimeout(() => {
+        banner.style.opacity = 0;
+        banner.style.transform = 'translateY(-20px)';
+        setTimeout(() => { banner.style.display = 'none'; }, 500); // Wait for transition
+    }, duration);
+}
+
+function showVoteModal(initiatorName) {
+    const modal = document.getElementById('vote-to-end-modal');
+    const modalText = document.getElementById('vote-modal-text');
+    const me = gameState.players.find(p => p.id === socket.id);
+
+    if (modal && modalText && me) {
+        modalText.textContent = `${initiatorName} has proposed ending the game. A unanimous 'Yes' vote is required.`;
+        modal.style.display = 'flex';
+
+        // Disable buttons if player has already voted (or is the initiator)
+        const voteYesBtn = document.getElementById('vote-yes-btn');
+        const voteNoBtn = document.getElementById('vote-no-btn');
+        if (gameState.voteToEndState.votes[me.id]) {
+            voteYesBtn.disabled = true;
+            voteNoBtn.disabled = true;
+        } else {
+            voteYesBtn.disabled = false;
+            voteNoBtn.disabled = false;
+        }
+    }
+}
+
 function setupPlayerPage() {
     const startGameBtn = document.getElementById('start-game-btn');
     if (startGameBtn) {
@@ -162,9 +204,23 @@ function setupPlayerPage() {
     const voteToEndBtn = document.getElementById('vote-to-end-btn');
     if (voteToEndBtn) {
         voteToEndBtn.addEventListener('click', () => {
-            socket.emit('voteToEnd', { code: gameState.code });
-            voteToEndBtn.disabled = true;
-            voteToEndBtn.textContent = 'Voted!';
+            socket.emit('initiateVoteToEnd', { code: gameState.code });
+        });
+    }
+
+    const voteYesBtn = document.getElementById('vote-yes-btn');
+    if (voteYesBtn) {
+        voteYesBtn.addEventListener('click', () => {
+            socket.emit('castVote', { code: gameState.code, vote: 'yes' });
+            document.getElementById('vote-to-end-modal').style.display = 'none';
+        });
+    }
+
+    const voteNoBtn = document.getElementById('vote-no-btn');
+    if (voteNoBtn) {
+        voteNoBtn.addEventListener('click', () => {
+            socket.emit('castVote', { code: gameState.code, vote: 'no' });
+            document.getElementById('vote-to-end-modal').style.display = 'none';
         });
     }
 }
@@ -198,12 +254,17 @@ socket.on('gameUpdate', (game) => {
     }
 });
 
-socket.on('voteUpdate', ({ voters, total }) => {
-    const voteStatus = document.getElementById('vote-status');
-    if (voteStatus) {
-        const required = Math.ceil(total / 2);
-        voteStatus.textContent = `(${voters}/${required} votes to end)`;
+socket.on('voteToEndStarted', ({ initiatorName }) => {
+    showVoteModal(initiatorName);
+});
+
+socket.on('voteToEndResult', ({ passed, reason }) => {
+    const modal = document.getElementById('vote-to-end-modal');
+    if (modal) {
+        modal.style.display = 'none';
     }
+    // Let the user know the outcome of the vote
+    showNotification(reason);
 });
 
 socket.on('gameOver', ({ reason, winner }) => {    
@@ -317,6 +378,8 @@ function renderBoard() {
             winnerAnnouncement.style.display = 'none';
         }
     }
+
+    renderVoteDisplay();
 }
 
 function renderPlayer() {
@@ -328,9 +391,9 @@ function renderPlayer() {
     if (!me) return;
 
     // --- Populate Scoreboard ---
-    const scoreboard = document.getElementById('player-scoreboard');
-    if (scoreboard) {
-        scoreboard.innerHTML = '<h3>Scores</h3>' + gameState.players
+    const scoreboardContent = document.querySelector('#player-scoreboard .scoreboard-content');
+    if (scoreboardContent) {
+        scoreboardContent.innerHTML = gameState.players
             .filter(p => p.name !== 'TV_BOARD')
             .sort((a, b) => b.score - a.score)
             .map(p => {
@@ -342,7 +405,7 @@ function renderPlayer() {
                 if (isCzar) classes += ' czar';
                 const czarIndicator = isCzar ? ' (Czar)' : '';
                 const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
-                return `<div class="${classes}">${p.name}: ${p.score}${czarIndicator}${disconnectedIndicator}</div>`;
+                return `<div class="${classes}"><span class="name">${p.name}${czarIndicator}${disconnectedIndicator}</span><span class="score">${p.score}</span></div>`;
             }).join('');
     }
 
@@ -363,22 +426,19 @@ function renderPlayer() {
     if (gameState.isEndless && gameState.state !== 'waiting' && gameState.state !== 'finished') {
         endlessActions.style.display = 'block';
 
-        const voteBtn = document.getElementById('vote-to-end-btn');
-        const voteStatus = document.getElementById('vote-status');
-
-        if (gameState.votesToEnd.includes(me.id)) {
-            voteBtn.disabled = true;
-            voteBtn.textContent = 'Voted!';
-        } else {
-            voteBtn.disabled = false;
-            voteBtn.textContent = 'Vote to End Game';
-        }
-
-        const totalPlayers = gameState.players.filter(p => p.name !== 'TV_BOARD').length;
-        const requiredVotes = Math.ceil(totalPlayers / 2);
-        voteStatus.textContent = `(${gameState.votesToEnd.length}/${requiredVotes} votes to end)`;
+        const voteToEndBtn = document.getElementById('vote-to-end-btn');
+        voteToEndBtn.disabled = gameState.voteToEndState.inProgress;
+        voteToEndBtn.textContent = gameState.voteToEndState.inProgress ? 'Vote in Progress...' : 'Vote to End Game';
     } else {
         endlessActions.style.display = 'none';
+    }
+
+    // Show or hide the vote modal based on game state
+    const voteModal = document.getElementById('vote-to-end-modal');
+    if (gameState.voteToEndState.inProgress) {
+        showVoteModal(gameState.voteToEndState.initiatorName);
+    } else if (voteModal.style.display !== 'none') {
+        voteModal.style.display = 'none';
     }
 
     if (gameState.state === 'waiting') {
@@ -524,5 +584,38 @@ function renderCzarChoices() {
         confirmContainer.style.display = 'block';
     } else {
         confirmContainer.style.display = 'none';
+    }
+}
+
+function renderVoteDisplay() {
+    const voteArea = document.getElementById('vote-display-area');
+    if (!voteArea) return;
+
+    if (gameState.voteToEndState.inProgress) {
+        voteArea.style.display = 'block';
+        document.getElementById('vote-initiator-name').textContent = gameState.voteToEndState.initiatorName;
+
+        const resultsList = document.getElementById('vote-results-list');
+        resultsList.innerHTML = '';
+
+        const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
+
+        activePlayers.forEach(player => {
+            const vote = gameState.voteToEndState.votes[player.id];
+            let statusText = 'Waiting...';
+            let statusClass = 'waiting';
+
+            if (vote === 'yes') {
+                statusText = 'Yes';
+                statusClass = 'yes';
+            } else if (vote === 'no') {
+                statusText = 'No';
+                statusClass = 'no';
+            }
+
+            resultsList.innerHTML += `<div class="vote-result-item"><span>${player.name}</span><span class="status ${statusClass}">${statusText}</span></div>`;
+        });
+    } else {
+        voteArea.style.display = 'none';
     }
 }

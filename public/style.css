@@ -224,28 +224,58 @@ button:hover {
 #czar-confirm-container {
     margin-top: 20px;
 }
-/* Styles for the new player scoreboard */
-.scoreboard {
-    padding: 10px;
+/* --- Player Scoreboard Styles (Collapsible) --- */
+.scoreboard-details {
+    background: #3a3a3a;
+    border-radius: 8px;
     margin-bottom: 15px;
-    background-color: #f0f0f0;
-    border-radius: 5px;
-    text-align: center;
+    border: 1px solid #555;
 }
 
-.scoreboard h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 5px;
+.scoreboard-details summary {
+    padding: 12px 15px;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none;
+    list-style: none; /* Remove default arrow in some browsers */
 }
 
-.score-item {
-    padding: 2px 0;
+.scoreboard-details summary::-webkit-details-marker {
+    display: none; /* Remove default arrow in Chrome/Safari */
 }
 
-/* Highlight for the current player */
-.score-item.me {
+.scoreboard-details summary::before {
+    content: '▶'; /* Custom arrow */
+    margin-right: 10px;
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.scoreboard-details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.scoreboard-content {
+    padding: 0 15px 15px 15px;
+    border-top: 1px solid #555;
+}
+
+.scoreboard-content .score-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #4a4a4a;
+}
+
+.scoreboard-content .score-item:last-child {
+    border-bottom: none;
+}
+
+.scoreboard-content .score-item .name {
+    text-align: left;
+}
+
+.scoreboard-content .score-item .score {
     font-weight: bold;
     color: #0056b3; /* A nice blue */
 }
@@ -262,10 +292,137 @@ button:hover {
     font-style: italic;
 }
 
-/* Specific override for the player scoreboard which has a light background */
-#player-scoreboard .score-item.disconnected {
-    color: #777;
+/* Highlight for the current player */
+.score-item.me .name {
+    color: #76c7ff; /* A nice light blue */
+    font-weight: bold;
 }
+
+/* Highlight for the Card Czar */
+.score-item.czar .name {
+    color: #f9a825; /* A golden/yellow color */
+}
+   
+/* --- Notification Banner --- */
+.notification-banner {
+    background-color: #0277bd;
+    color: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    transform: translateY(-20px);
+}
+
+/* --- Vote to End Modal (Player View) --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background: #3a3a3a;
+    padding: 25px 30px;
+    border-radius: 15px;
+    text-align: center;
+    max-width: 90%;
+    width: 350px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+}
+
+.modal-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+}
+
+.vote-btn.yes {
+    background-color: #4CAF50; /* Green */
+}
+.vote-btn.yes:hover {
+    background-color: #45a049;
+}
+
+.vote-btn.no {
+    background-color: #c0392b; /* Red */
+}
+.vote-btn.no:hover {
+    background-color: #a93226;
+}
+
+/* --- Vote Display (Board View) --- */
+.vote-display {
+    background-color: #1e1e1e;
+    border: 2px solid #f9a825; /* Gold to match winner banner */
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 30px;
+    width: 100%;
+    max-width: 800px;
+}
+
+.vote-display h2 {
+    margin-top: 0;
+    color: #f9a825;
+}
+
+#vote-results-list {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    text-align: left;
+}
+
+.vote-result-item {
+    background: #2c2c2c;
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.vote-result-item .status {
+    font-weight: bold;
+}
+
+.vote-result-item .status.yes {
+    color: #2ecc71; /* Green */
+}
+
+.vote-result-item .status.no {
+    color: #e74c3c; /* Red */
+}
+
+.vote-result-item .status.waiting {
+    color: #95a5a6; /* Grey */
+    font-style: italic;
+}
+
+/* --- Disconnected Player Styles --- */
+.disconnected {
+    opacity: 0.6;
+    font-style: italic;
+}
+
 
 /* --- Footer Styles --- */
 .site-footer {

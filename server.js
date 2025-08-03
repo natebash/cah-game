@@ -99,7 +99,12 @@ function startNewRound(gameCode) {
     game.state = 'playing';
     game.submissions = {};
     game.roundWinnerInfo = null;
-
+    // Reset vote state if a new round starts while a vote was in progress
+    if (game.voteToEndState.inProgress) {
+        game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
+        io.to(gameCode).emit('voteToEndResult', { passed: false, reason: 'A new round started.' });
+    }
+    
     // Rotate Card Czar
     game.czarIndex = (game.czarIndex + 1) % activePlayers.length;
     game.currentCzar = activePlayers[game.czarIndex].id;
@@ -143,7 +148,11 @@ io.on('connection', (socket) => {
             round: 0,
             winTarget: isEndless ? null : parseInt(winTarget, 10) || 7,
             isEndless: isEndless,
-            votesToEnd: [],
+            voteToEndState: {
+                inProgress: false,
+                initiatorName: null,
+                votes: {} // { playerId: vote ('yes'/'no') }
+            },
             czarIndex: -1,
             currentCzar: null,
             currentBlackCard: null,
@@ -263,20 +272,40 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('voteToEnd', (data) => {
+    socket.on('initiateVoteToEnd', (data) => {
         const game = games[data.code];
-        if (!game || !game.isEndless || game.votesToEnd.includes(socket.id)) return;
-        
-        game.votesToEnd.push(socket.id);
-        const requiredVotes = Math.ceil(getActivePlayers(game).length / 2);
+        const player = game.players.find(p => p.id === socket.id);
+        if (!game || !game.isEndless || game.voteToEndState.inProgress || !player) return;
 
-        if(game.votesToEnd.length >= requiredVotes) {
+        game.voteToEndState.inProgress = true;
+        game.voteToEndState.initiatorName = player.name;
+        game.voteToEndState.votes = { [socket.id]: 'yes' }; // Initiator automatically votes yes
+
+        io.to(data.code).emit('voteToEndStarted', { initiatorName: player.name });
+        io.to(data.code).emit('gameUpdate', game);
+    });
+
+    socket.on('castVote', (data) => { // data: { code, vote: 'yes'/'no' }
+        const game = games[data.code];
+        if (!game || !game.voteToEndState.inProgress || game.voteToEndState.votes[socket.id]) return;
+
+        game.voteToEndState.votes[socket.id] = data.vote;
+
+        const activePlayers = getActivePlayers(game);
+        const totalVotes = Object.keys(game.voteToEndState.votes).length;
+
+        if (data.vote === 'no') {
+            // A single 'no' vote ends the attempt
+            io.to(data.code).emit('voteToEndResult', { passed: false, reason: 'The vote was not unanimous.' });
+            game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
+        } else if (totalVotes === activePlayers.length) {
+            // All players have voted, and all votes were 'yes'
             const finalWinner = getActivePlayers(game).reduce((prev, current) => (prev.score > current.score) ? prev : current);
-            endGame(data.code, `The players have voted to end the game!`, finalWinner);
-        } else {
-            const totalPlayers = getActivePlayers(game).length;
-            io.to(data.code).emit('voteUpdate', { voters: game.votesToEnd.length, total: totalPlayers });
+            endGame(data.code, `The players have unanimously voted to end the game!`, finalWinner);
+            // No need to reset state here, endGame handles it
         }
+        // Always update the game state to show vote progress
+        io.to(data.code).emit('gameUpdate', game);
     });
 
     socket.on('disconnect', () => {
@@ -287,6 +316,12 @@ io.on('connection', (socket) => {
             if (player && player.name !== 'TV_BOARD') {
                 console.log(`Player ${player.name} disconnected from game ${code}`);
                 player.disconnected = true;
+
+                // If a vote is in progress, cancel it
+                if (game.voteToEndState.inProgress) {
+                    io.to(code).emit('voteToEndResult', { passed: false, reason: `${player.name} disconnected.` });
+                    game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
+                }
 
                 // Set a timeout to remove the player permanently if they don't reconnect
                 player.disconnectTimeout = setTimeout(() => {

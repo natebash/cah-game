@@ -22,9 +22,11 @@
         </header>
         
         <main>
-            <div id="player-scoreboard" class="scoreboard">
-                <!-- Scores will be populated here by client.js -->
-            </div>
+            <div id="notification-banner" class="notification-banner" style="display: none;"></div>
+            <details id="player-scoreboard" class="scoreboard-details">
+                <summary>Scores</summary>
+                <div class="scoreboard-content"></div>
+            </details>
 
             <div id="endless-game-actions" style="display: none;">
                 <button id="vote-to-end-btn">Vote to End Game</button>
@@ -65,6 +67,17 @@
                 <h2 id="game-over-reason">Game Over!</h2>
                 <p>Winner: <strong id="game-over-winner"></strong></p>
                 <p>You will be returned to the main menu shortly.</p>
+            </div>
+
+            <div id="vote-to-end-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <h2 id="vote-modal-title">Vote to End Game</h2>
+                    <p id="vote-modal-text">A player has proposed ending the game. A unanimous 'Yes' vote is required.</p>
+                    <div class="modal-actions">
+                        <button id="vote-yes-btn" class="vote-btn yes">Vote Yes</button>
+                        <button id="vote-no-btn" class="vote-btn no">Vote No</button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
