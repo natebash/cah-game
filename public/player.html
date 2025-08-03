@@ -13,22 +13,40 @@
                 <h2 id="player-name">Player</h2>
                 <p>Score: <span id="player-score">0</span></p>
             </div>
+            <div id="game-code-box" style="display: none;">
+                Game Code: <strong id="game-code-display">----</strong>
+            </div>
             <div id="player-status" class="status-banner">
-                </div>
+                Waiting to connect...
+            </div>
         </header>
         
         <main>
-            <div id="current-black-card-player" class="card black small">
-                 <p id="black-card-text-player">Waiting for round to start...</p>
+            <div id="lobby-view" style="display: none;">
+                <h2>Players in Lobby:</h2>
+                <ul id="player-list"></ul>
+                <div id="start-game-container" style="display: none;">
+                    <button id="start-game-btn">Start Game</button>
+                </div>
             </div>
 
-            <div id="my-hand">
+            <div id="game-view" style="display: none;">
+                <div id="current-black-card-player" class="card black small">
+                    <p id="black-card-text-player">Waiting for round to start...</p>
                 </div>
 
-            <div id="czar-judging-area" style="display: none;">
-                <h3>Choose the winning card:</h3>
-                <div id="cards-to-judge">
+                <div id="my-hand">
                     </div>
+
+                <div id="submit-button-container" style="display: none;">
+                    <button id="submit-cards-btn">Submit Cards</button>
+                </div>
+
+                <div id="czar-judging-area" style="display: none;">
+                    <h3>Choose the winning card:</h3>
+                    <div id="cards-to-judge">
+                        </div>
+                </div>
             </div>
         </main>
     </div>

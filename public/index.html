@@ -11,7 +11,13 @@
         <h1>Cards Against All Sanity</h1>
 
         <div id="menu">
-            <div id="create-game-view">
+            <div id="main-menu">
+                <button id="show-create-btn">Create Game</button>
+                <button id="show-join-btn">Join Game</button>
+                <button id="show-board-btn">Join as Board</button>
+            </div>
+
+            <div id="create-game-view" class="menu-view" style="display: none;">
                 <h2>Create Game</h2>
                 <input type="text" id="create-name" placeholder="Your Name" maxlength="15">
                 <div class="game-options">
@@ -22,17 +28,25 @@
                     </label>
                 </div>
                 <button id="create-btn">Create</button>
+                <a href="#" class="back-link">Back</a>
             </div>
 
-            <div id="join-game-view" style="display: none;">
+            <div id="join-game-view" class="menu-view" style="display: none;">
                 <h2>Join Game</h2>
                 <input type="text" id="join-name" placeholder="Your Name" maxlength="15">
-                <input type="text" id="game-code-input" placeholder="Game Code (4 letters)" maxlength="4">
+                <input type="text" id="game-code-input-player" placeholder="Game Code" maxlength="4">
                 <button id="join-btn">Join</button>
+                <a href="#" class="back-link">Back</a>
+            </div>
+
+            <div id="board-game-view" class="menu-view" style="display: none;">
+                <h2>Join as Board</h2>
+                <input type="text" id="game-code-input-board" placeholder="Game Code" maxlength="4">
+                <button id="board-join-btn">Join Board</button>
+                <a href="#" class="back-link">Back</a>
             </div>
             
             <p id="error-message" class="error"></p>
-            <a href="#" id="toggle-view-link">Want to join a game instead?</a>
         </div>
     </div>
 

@@ -23,10 +23,6 @@ h1, h2, h3 {
     letter-spacing: 1px;
 }
 
-h1 {
-    font-size: 2.5rem;
-}
-
 /* --- Card Styles --- */
 .card {
     background-color: #ffffff;
@@ -42,6 +38,8 @@ h1 {
     font-weight: 600;
     line-height: 1.4;
     text-align: left;
+    border: 3px solid transparent;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .card.black {
@@ -49,10 +47,15 @@ h1 {
     color: #f0f0f0;
 }
 
-.card.white:hover {
+#my-hand .card.white:not(:disabled):hover {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
     cursor: pointer;
+}
+
+.card.white.selected {
+    border-color: #4CAF50;
+    transform: translateY(-5px) scale(1.02);
 }
 
 .card.disabled, .card.white:disabled {
@@ -71,7 +74,17 @@ h1 {
     margin: auto;
 }
 
-input[type="text"] {
+#main-menu button {
+    margin-bottom: 10px;
+}
+
+.back-link {
+    display: block;
+    margin-top: 20px;
+    color: #aaa;
+}
+
+input[type="text"], input[type="number"] {
     width: 100%;
     padding: 12px;
     margin-bottom: 15px;
@@ -83,13 +96,14 @@ input[type="text"] {
     box-sizing: border-box;
     text-transform: uppercase;
 }
+input[type="number"] { text-transform: none; }
 
 button {
     width: 100%;
     padding: 15px;
     border: none;
     border-radius: 8px;
-    background-color: #4CAF50; /* A nice green */
+    background-color: #4CAF50;
     color: white;
     font-size: 1.2rem;
     font-weight: bold;
@@ -101,112 +115,80 @@ button:hover {
     background-color: #45a049;
 }
 
-#toggle-view-link {
-    display: block;
-    margin-top: 20px;
-    color: #aaa;
-    text-decoration: none;
-}
-#toggle-view-link:hover {
-    color: #fff;
-}
+.game-options { margin: 15px 0; text-align: left; }
+.error { color: #ff6b6b; margin-top: 10px; min-height: 20px; }
 
-.error {
-    color: #ff6b6b;
-    margin-top: 10px;
-    min-height: 20px;
-}
 
-/* --- TV Board View (board.html) --- */
+/* --- TV Board View --- */
 .board-view header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+#scoreboard { display: flex; gap: 20px; }
+.score-item { background: #3a3a3a; padding: 10px 15px; border-radius: 8px; }
+#black-card-area .card.black {
+    width: 300px; height: 420px; font-size: 1.8rem; margin: 0 auto 30px auto;
+}
+#submissions-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+.card-group { display: flex; gap: 5px; }
+#submissions-area .card-group .card.white { width: 220px; height: 300px; }
+.winner-banner { margin-top: 30px; padding: 20px; background-color: #f9a825; color: #1a1a1a; border-radius: 10px; font-size: 1.5rem; font-weight: bold; }
+
+/* --- Player Phone View --- */
+.player-view header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-#scoreboard {
-    display: flex;
-    gap: 20px;
-}
-
-.score-item {
-    background: #3a3a3a;
-    padding: 10px 15px;
-    border-radius: 8px;
-}
-
-#black-card-area .card.black {
-    width: 300px;
-    height: 420px;
-    font-size: 1.8rem;
-    margin: 0 auto 30px auto;
-}
-
-#submissions-area {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
-}
-
-#submissions-area .card.white {
-    width: 220px;
-    height: 300px;
-}
-
-.winner-banner {
-    margin-top: 30px;
-    padding: 20px;
-    background-color: #f9a825; /* Gold */
-    color: #1a1a1a;
-    border-radius: 10px;
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-/* --- Player Phone View (player.html) --- */
-.player-view header {
+    align-items: flex-start;
     margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#game-code-box {
+    background: #1a1a1a;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    position: absolute;
+    top: 15px;
+    right: 15px;
 }
 
 .status-banner {
     padding: 10px;
     margin-top: 10px;
-    background-color: #0277bd; /* Blue */
+    background-color: #0277bd;
     border-radius: 8px;
     font-weight: bold;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .card.black.small {
-    min-height: 80px;
-    margin-bottom: 20px;
-    font-size: 1rem;
+    min-height: 80px; margin-bottom: 20px; font-size: 1rem;
 }
 
 #my-hand, #cards-to-judge {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: flex; flex-direction: column; gap: 10px;
 }
 
 #my-hand .card.white, #cards-to-judge .card.white {
-    width: 100%;
-    min-height: 100px;
-    font-size: 1rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%; min-height: 100px; font-size: 1rem;
 }
 
-/* For small screens (phones) */
-@media (max-width: 600px) {
-    body {
-        padding: 10px;
-    }
-    h1 {
-        font-size: 1.8rem;
-    }
-    .card {
-        padding: 15px;
-        border-radius: 8px;
-    }
+#submit-button-container {
+    margin-top: 20px;
+}
+
+#lobby-view ul {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    background: #3a3a3a;
+    border-radius: 8px;
+}
+#lobby-view ul li {
+    padding: 15px;
+    border-bottom: 1px solid #555;
+}
+#lobby-view ul li:last-child {
+    border-bottom: none;
 }
