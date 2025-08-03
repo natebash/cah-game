@@ -192,3 +192,13 @@ button:hover {
 #lobby-view ul li:last-child {
     border-bottom: none;
 }
+
+.card-group.czar-selected {
+    border: 3px solid #f9a825; /* Gold border */
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(249, 168, 37, 0.4);
+}
+
+#czar-confirm-container {
+    margin-top: 20px;
+}

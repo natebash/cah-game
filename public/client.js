@@ -5,6 +5,7 @@ const socket = io();
 let gameState = {};
 let myPlayerId = null;
 let selectedCards = [];
+let czarSelection = null;
 
 // --- UTILITY FUNCTIONS ---
 function getGameCodeFromURL() {
@@ -120,8 +121,17 @@ function setupPlayerPage() {
             }
         });
     }
-}
 
+    const czarConfirmBtn = document.getElementById('czar-confirm-btn');
+    if (czarConfirmBtn) {
+        czarConfirmBtn.addEventListener('click', () => {
+            if (czarSelection) {
+                socket.emit('czarChoose', { code: gameState.code, winningCards: czarSelection });
+                czarSelection = null; // Reset after confirming
+            }
+        });
+    }
+}
 // --- SOCKET.IO HANDLERS ---
 socket.on('gameCreated', (data) => {
     sessionStorage.setItem('playerName', data.name);
@@ -336,11 +346,18 @@ function handleCardSelect(cardText) {
 
 function renderCzarChoices() {
     const cardsToJudge = document.getElementById('cards-to-judge');
+    const confirmContainer = document.getElementById('czar-confirm-container');
     cardsToJudge.innerHTML = '';
+
     for (const playerId in gameState.submissions) {
         const submission = gameState.submissions[playerId];
         const cardGroup = document.createElement('div');
         cardGroup.className = 'card-group interactive';
+
+        // Check if this submission is the one the Czar has pre-selected
+        if (czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission)) {
+            cardGroup.classList.add('czar-selected');
+        }
         
         submission.forEach(cardText => {
             const cardDiv = document.createElement('div');
@@ -350,8 +367,16 @@ function renderCzarChoices() {
         });
 
         cardGroup.addEventListener('click', () => {
-            socket.emit('czarChoose', { code: gameState.code, winningCards: submission });
+            czarSelection = submission; // Pre-select this card
+            renderCzarChoices(); // Re-render to show the highlight
         });
         cardsToJudge.appendChild(cardGroup);
+    }
+    
+    // Show or hide the confirm button based on whether a card is selected
+    if (czarSelection) {
+        confirmContainer.style.display = 'block';
+    } else {
+        confirmContainer.style.display = 'none';
     }
 }
