@@ -225,7 +225,7 @@ function renderPlayer() {
         const playerList = document.getElementById('player-list');
         playerList.innerHTML = gameState.players
             .filter(p => p.name !== 'TV_BOARD')
-            .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join('');
+            .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join(''); // << THE FIX WAS HERE
 
         document.getElementById('start-game-container').style.display = isHost ? 'block' : 'none';
     } else {
