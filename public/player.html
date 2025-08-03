@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Player Hand</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container player-view">
+        <header>
+            <div id="player-info">
+                <h2 id="player-name">Player</h2>
+                <p>Score: <span id="player-score">0</span></p>
+            </div>
+            <div id="player-status" class="status-banner">
+                </div>
+        </header>
+        
+        <main>
+            <div id="current-black-card-player" class="card black small">
+                 <p id="black-card-text-player">Waiting for round to start...</p>
+            </div>
+
+            <div id="my-hand">
+                </div>
+
+            <div id="czar-judging-area" style="display: none;">
+                <h3>Choose the winning card:</h3>
+                <div id="cards-to-judge">
+                    </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>

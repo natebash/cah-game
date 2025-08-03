@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Board</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container board-view">
+        <header>
+            <div id="game-info">
+                <h1>Game Code: <span id="game-code-display">----</span></h1>
+            </div>
+            <div id="scoreboard">
+                </div>
+        </header>
+
+        <main id="game-area">
+            <div id="waiting-area">
+                <h2>Waiting for players...</h2>
+                <p>Join with code <strong id="game-code-waiting">----</strong> on your phone.</p>
+            </div>
+
+            <div id="round-area" style="display: none;">
+                <div id="black-card-area">
+                    <div class="card black">
+                        <p id="black-card-text">The black card will appear here.</p>
+                    </div>
+                </div>
+                <h2 id="submissions-header">Submissions:</h2>
+                <div id="submissions-area">
+                    </div>
+                 <div id="winner-announcement" class="winner-banner" style="display: none;">
+                    </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
