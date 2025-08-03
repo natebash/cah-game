@@ -202,3 +202,45 @@ button:hover {
 #czar-confirm-container {
     margin-top: 20px;
 }
+/* Styles for the new player scoreboard */
+.scoreboard {
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.scoreboard h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+.score-item {
+    padding: 2px 0;
+}
+
+/* Highlight for the current player */
+.score-item.me {
+    font-weight: bold;
+    color: #0056b3; /* A nice blue */
+}
+
+/* Highlight for the Card Czar */
+.score-item.czar {
+    color: #e4a800; /* A golden/yellow color */
+    font-style: italic;
+}
+
+/* --- Disconnected Player Styles --- */
+.disconnected {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Specific override for the player scoreboard which has a light background */
+#player-scoreboard .score-item.disconnected {
+    color: #777;
+}

@@ -22,6 +22,15 @@
         </header>
         
         <main>
+            <div id="player-scoreboard" class="scoreboard">
+                <!-- Scores will be populated here by client.js -->
+            </div>
+
+            <div id="endless-game-actions" style="display: none;">
+                <button id="vote-to-end-btn">Vote to End Game</button>
+                <span id="vote-status"></span>
+            </div>
+
             <div id="lobby-view" style="display: none;">
                 <h2>Players in Lobby:</h2>
                 <ul id="player-list"></ul>
@@ -51,10 +60,29 @@
                 </div>
             </div>
             </div>
+
+            <div id="game-over-view-player" style="display: none;">
+                <h2 id="game-over-reason">Game Over!</h2>
+                <p>Winner: <strong id="game-over-winner"></strong></p>
+                <p>You will be returned to the main menu shortly.</p>
+            </div>
         </main>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
+    <footer class="site-footer">
+    <p>This is an unofficial fan project and is not affiliated with Cards Against Humanity, LLC.</p>
+    <p>
+        Card content is based on <a href="https://www.cardsagainsthumanity.com/" target="_blank" rel="noopener noreferrer">Cards Against Humanity</a>. Licensed under a 
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; text-decoration: none;">
+            Creative Commons BY-NC-SA 4.0
+            <img alt="Creative Commons License" style="height: 22px!important; margin-left: 5px; vertical-align: text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" />
+            <img alt="Attribution" style="height: 22px!important; margin-left: 3px; vertical-align: text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg" />
+            <img alt="NonCommercial" style="height: 22px!important; margin-left: 3px; vertical-align: text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" />
+            <img alt="ShareAlike" style="height: 22px!important; margin-left: 3px; vertical-align: text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/sa.svg" />
+        </a>.
+    </p>
+</footer>
 </body>
 </html>

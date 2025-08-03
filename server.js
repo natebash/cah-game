@@ -54,10 +54,14 @@ function shuffle(array) {
     return array;
 }
 
+function getActivePlayers(game) {
+    return game.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
+}
+
 function firstRound(gameCode) {
     const game = games[gameCode];
     if (!game) return;
-    const activePlayers = game.players.filter(p => p.name !== 'TV_BOARD');
+    const activePlayers = getActivePlayers(game);
     if (activePlayers.length < 2) return; // Don't start with less than 2 players
 
     game.state = 'playing';
@@ -84,8 +88,8 @@ function startNewRound(gameCode) {
     }
 
     // Ensure there are enough players to continue
-    const activePlayers = game.players.filter(p => p.name !== 'TV_BOARD');
-    if (activePlayers.length < 2) {
+    const activePlayers = getActivePlayers(game);
+    if (activePlayers.length < 1) { // Allow game to continue with 1 active player, they just wait
         game.state = 'waiting';
         io.to(gameCode).emit('gameUpdate', game);
         return;
@@ -95,7 +99,6 @@ function startNewRound(gameCode) {
     game.state = 'playing';
     game.submissions = {};
     game.roundWinnerInfo = null;
-    game.votesToEnd = [];
 
     // Rotate Card Czar
     game.czarIndex = (game.czarIndex + 1) % activePlayers.length;
@@ -117,8 +120,11 @@ function endGame(gameCode, reason, winner = null) {
     const game = games[gameCode];
     if (!game) return;
     game.state = 'finished';
-    io.to(gameCode).emit('gameOver', { reason, winner, finalScores: game.players });
-    delete games[gameCode];
+    io.to(gameCode).emit('gameOver', { reason, winner });
+    // Clean up the game object after a delay to allow clients to see the final state
+    setTimeout(() => {
+        delete games[gameCode];
+    }, 60000); // 60 seconds
 }
 
 // --- Socket.IO Connection Logic ---
@@ -154,18 +160,48 @@ io.on('connection', (socket) => {
             return socket.emit('errorMsg', 'Game not found.');
         }
 
-        if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase())) {
+        // Handle player rejoin
+        const rejoiningPlayer = game.players.find(p => p.name === data.name && p.disconnected);
+        if (rejoiningPlayer && data.token === rejoiningPlayer.token) {
+            if (rejoiningPlayer.disconnectTimeout) {
+                clearTimeout(rejoiningPlayer.disconnectTimeout);
+                rejoiningPlayer.disconnectTimeout = null;
+            }
+            rejoiningPlayer.disconnected = false;
+            rejoiningPlayer.id = socket.id;
+            socket.join(data.code);
+            console.log(`Player ${data.name} reconnected to game ${data.code}`);
+            io.to(data.code).emit('gameUpdate', game);
+            return;
+        }
+
+        // Prevent new players with the same name as an active player
+        if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase() && !p.disconnected)) {
             return socket.emit('errorMsg', 'That name is already taken.');
         }
         
+        const playerToken = crypto.randomBytes(16).toString('hex');
+        const player = { 
+            id: socket.id, 
+            name: data.name, 
+            score: 0, 
+            hand: [], 
+            token: playerToken,
+            disconnected: false,
+            disconnectTimeout: null
+        };
+
         // Correctly assign hostId if the token matches
         if (data.token && data.token === game.hostToken && !game.hostId) {
             game.hostId = socket.id;
+            player.token = game.hostToken; // Host uses the game's hostToken
         }
         
-        const player = { id: socket.id, name: data.name, score: 0, hand: [] };
         game.players.push(player);
         socket.join(data.code);
+
+        // Send the player their unique token for rejoining purposes
+        socket.emit('joinSuccess', { name: player.name, token: player.token });
         io.to(data.code).emit('gameUpdate', game);
     });
     
@@ -184,7 +220,7 @@ io.on('connection', (socket) => {
         const player = game.players.find(p => p.id === socket.id);
         player.hand = player.hand.filter(card => !data.cards.includes(card));
         
-        const requiredSubmissions = game.players.filter(p => p.name !== 'TV_BOARD').length - 1;
+        const requiredSubmissions = getActivePlayers(game).length - 1;
         if (Object.keys(game.submissions).length >= requiredSubmissions) {
             game.state = 'judging';
         }
@@ -219,41 +255,53 @@ io.on('connection', (socket) => {
         if (!game || !game.isEndless || game.votesToEnd.includes(socket.id)) return;
         
         game.votesToEnd.push(socket.id);
-        const requiredVotes = Math.ceil(game.players.filter(p=>p.name !== 'TV_BOARD').length / 2);
+        const requiredVotes = Math.ceil(getActivePlayers(game).length / 2);
 
         if(game.votesToEnd.length >= requiredVotes) {
-            const finalWinner = game.players.filter(p=>p.name !== 'TV_BOARD').reduce((prev, current) => (prev.score > current.score) ? prev : current);
+            const finalWinner = getActivePlayers(game).reduce((prev, current) => (prev.score > current.score) ? prev : current);
             endGame(data.code, `The players have voted to end the game!`, finalWinner);
         } else {
-            io.to(data.code).emit('voteUpdate', { voters: game.votesToEnd.length, total: game.players.length });
+            const totalPlayers = getActivePlayers(game).length;
+            io.to(data.code).emit('voteUpdate', { voters: game.votesToEnd.length, total: totalPlayers });
         }
     });
 
     socket.on('disconnect', () => {
         for (const code in games) {
             const game = games[code];
-            const playerIndex = game.players.findIndex(p => p.id === socket.id);
+            const player = game.players.find(p => p.id === socket.id);
 
-            if (playerIndex !== -1) {
-                const disconnectedPlayer = game.players[playerIndex];
-                game.players.splice(playerIndex, 1);
+            if (player && player.name !== 'TV_BOARD') {
+                console.log(`Player ${player.name} disconnected from game ${code}`);
+                player.disconnected = true;
 
-                const remainingPlayers = game.players.filter(p => p.name !== 'TV_BOARD');
-
-                if (remainingPlayers.length < 2 && game.state !== 'waiting') {
-                    endGame(code, "Not enough players left to continue.");
-                } else {
-                    if (disconnectedPlayer.id === game.hostId) {
-                        // If host leaves, assign a new host to the first player
-                        if (remainingPlayers.length > 0) {
-                            game.hostId = remainingPlayers[0].id;
-                        }
-                    }
-                    if (disconnectedPlayer.id === game.currentCzar && game.state !== 'waiting') {
-                        startNewRound(code);
-                    } else {
+                // Set a timeout to remove the player permanently if they don't reconnect
+                player.disconnectTimeout = setTimeout(() => {
+                    const playerIndex = game.players.findIndex(p => p.id === player.id);
+                    if (playerIndex !== -1 && game.players[playerIndex].disconnected) {
+                        console.log(`Permanently removing ${player.name} from game ${code} after timeout.`);
+                        game.players.splice(playerIndex, 1);
                         io.to(code).emit('gameUpdate', game);
                     }
+                }, 120000); // 2 minutes
+
+                const remainingActivePlayers = getActivePlayers(game);
+
+                if (remainingActivePlayers.length < 2 && game.state !== 'waiting') {
+                    endGame(code, "Not enough players left to continue.");
+                    break; // Exit loop once game is ended
+                }
+
+                if (player.id === game.hostId) {
+                    // If host leaves, assign a new host to the first active player
+                    if (remainingActivePlayers.length > 0) {
+                        game.hostId = remainingActivePlayers[0].id;
+                    }
+                }
+                if (player.id === game.currentCzar && game.state !== 'waiting') {
+                    startNewRound(code);
+                } else {
+                    io.to(code).emit('gameUpdate', game);
                 }
                 break;
             }

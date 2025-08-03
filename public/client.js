@@ -17,6 +17,13 @@ function navigateTo(page, gameCode) {
     window.location.href = `${page}?game=${gameCode}`;
 }
 
+function sanitizeGameCodeInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.addEventListener('input', (e) => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''));
+    }
+}
+
 // --- DOM ELEMENTS & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
     const page = window.location.pathname;
@@ -25,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setupIndexPage();
     } else if (page.includes('player.html')) {
         setupPlayerPage();
+    } else if (page.includes('board.html')) {
+        setupBoardPage();
     }
 
     // Auto-join if game code is in URL
@@ -35,10 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (page.includes('board.html')) {
                 socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
             } else if (page.includes('player.html')) {
+                // Use playerToken for rejoining, fallback to hostToken for host's first join
                 const playerName = sessionStorage.getItem('playerName');
+                const playerToken = sessionStorage.getItem('playerToken');
                 const hostToken = sessionStorage.getItem('hostToken');
                 if (playerName) {
-                    socket.emit('joinGame', { code: gameCode, name: playerName, token: hostToken });
+                    socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
                 }
             }
         });
@@ -88,6 +99,7 @@ function setupIndexPage() {
             sessionStorage.setItem('playerName', name);
             // We don't want to carry over a host token if we are a regular player
             sessionStorage.removeItem('hostToken');
+            sessionStorage.removeItem('playerToken'); // Clear old player token on new join
             navigateTo('player.html', code);
         }
     });
@@ -102,6 +114,21 @@ function setupIndexPage() {
     document.getElementById('endless-mode').addEventListener('change', (e) => {
         document.getElementById('win-target').disabled = e.target.checked;
     });
+
+    // Auto-uppercase and sanitize game code inputs
+    sanitizeGameCodeInput('game-code-input-player');
+    sanitizeGameCodeInput('game-code-input-board');
+}
+
+function setupBoardPage() {
+    // This is for the "Join New Game" button on the game over screen
+    document.getElementById('board-join-btn-new').addEventListener('click', () => {
+        const code = document.getElementById('game-code-input-board-new').value.toUpperCase();
+        if (code) {
+            navigateTo('board.html', code);
+        }
+    });
+    sanitizeGameCodeInput('game-code-input-board-new');
 }
 
 function setupPlayerPage() {
@@ -131,12 +158,26 @@ function setupPlayerPage() {
             }
         });
     }
+
+    const voteToEndBtn = document.getElementById('vote-to-end-btn');
+    if (voteToEndBtn) {
+        voteToEndBtn.addEventListener('click', () => {
+            socket.emit('voteToEnd', { code: gameState.code });
+            voteToEndBtn.disabled = true;
+            voteToEndBtn.textContent = 'Voted!';
+        });
+    }
 }
 // --- SOCKET.IO HANDLERS ---
 socket.on('gameCreated', (data) => {
     sessionStorage.setItem('playerName', data.name);
     sessionStorage.setItem('hostToken', data.token); // Save the host token
+    sessionStorage.removeItem('playerToken'); // Clear any previous player token
     navigateTo('player.html', data.code);
+});
+
+socket.on('joinSuccess', (data) => {
+    sessionStorage.setItem('playerToken', data.token);
 });
 
 socket.on('gameUpdate', (game) => {
@@ -157,19 +198,42 @@ socket.on('gameUpdate', (game) => {
     }
 });
 
-socket.on('gameOver', ({ reason, winner }) => {
-    const announcement = document.getElementById('winner-announcement');
-    if (announcement) {
-        let message = `<h2>Game Over!</h2><p>${reason}</p>`;
-        if (winner) {
-            message += `<p><strong>Winner: ${winner.name}</strong></p>`;
-        }
-        announcement.innerHTML = message;
-        announcement.style.display = 'block';
+socket.on('voteUpdate', ({ voters, total }) => {
+    const voteStatus = document.getElementById('vote-status');
+    if (voteStatus) {
+        const required = Math.ceil(total / 2);
+        voteStatus.textContent = `(${voters}/${required} votes to end)`;
+    }
+});
 
-        const roundArea = document.getElementById('round-area');
-        if (roundArea) {
-            roundArea.style.display = 'none';
+socket.on('gameOver', ({ reason, winner }) => {    
+    if (window.location.pathname.includes('board.html')) {
+        document.getElementById('waiting-area').style.display = 'none';
+        document.getElementById('round-area').style.display = 'none';
+        
+        const gameOverArea = document.getElementById('game-over-area');
+        const finalWinnerEl = document.getElementById('final-winner-announcement');
+        
+        if (gameOverArea && finalWinnerEl) {
+            let message = `<h2>Game Over!</h2><p>${reason}</p>`;
+            if (winner) {
+                message += `<p><strong>Winner: ${winner.name}</strong></p>`;
+            }
+            finalWinnerEl.innerHTML = message;
+            gameOverArea.style.display = 'block';
+        }
+    } else if (window.location.pathname.includes('player.html')) {
+        const gameOverView = document.getElementById('game-over-view-player');
+        if (gameOverView) {
+            document.getElementById('game-over-reason').textContent = reason;
+            document.getElementById('game-over-winner').textContent = winner ? winner.name : 'N/A';
+            
+            document.getElementById('lobby-view').style.display = 'none';
+            document.getElementById('game-view').style.display = 'none';
+            document.getElementById('endless-game-actions').style.display = 'none';
+            gameOverView.style.display = 'block';
+
+            setTimeout(() => { window.location.href = '/'; }, 10000);
         }
     }
 });
@@ -185,11 +249,24 @@ socket.on('errorMsg', (msg) => {
 
 // --- RENDER FUNCTIONS ---
 function renderBoard() {
+    if (gameState.state === 'finished') {
+        return; // Don't re-render if the game is over
+    }
+
     document.getElementById('game-code-display').textContent = gameState.code;
     
     document.getElementById('scoreboard').innerHTML = gameState.players
         .filter(p => p.name !== 'TV_BOARD')
-        .map(p => `<div class="score-item">${p.name}: ${p.score}</div>`).join('');
+        .sort((a, b) => b.score - a.score)
+        .map(p => {
+            const disconnected = p.disconnected ? ' disconnected' : '';
+            const isCzar = p.id === gameState.currentCzar;
+            let classes = 'score-item' + disconnected;
+            if (isCzar) classes += ' czar';
+            const czarIndicator = isCzar ? ' (Czar)' : '';
+            const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
+            return `<div class="${classes}">${p.name}: ${p.score}${czarIndicator}${disconnectedIndicator}</div>`;
+        }).join('');
 
     if (gameState.state === 'waiting') {
         document.getElementById('waiting-area').style.display = 'block';
@@ -238,8 +315,31 @@ function renderBoard() {
 }
 
 function renderPlayer() {
+    if (gameState.state === 'finished') {
+        return; // Don't re-render if the game is over
+    }
+
     const me = gameState.players.find(p => p.id === socket.id);
     if (!me) return;
+
+    // --- Populate Scoreboard ---
+    const scoreboard = document.getElementById('player-scoreboard');
+    if (scoreboard) {
+        scoreboard.innerHTML = '<h3>Scores</h3>' + gameState.players
+            .filter(p => p.name !== 'TV_BOARD')
+            .sort((a, b) => b.score - a.score)
+            .map(p => {
+                const disconnected = p.disconnected ? ' disconnected' : '';
+                const isMe = p.id === socket.id;
+                const isCzar = p.id === gameState.currentCzar;
+                let classes = 'score-item' + disconnected;
+                if (isMe) classes += ' me';
+                if (isCzar) classes += ' czar';
+                const czarIndicator = isCzar ? ' (Czar)' : '';
+                const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
+                return `<div class="${classes}">${p.name}: ${p.score}${czarIndicator}${disconnectedIndicator}</div>`;
+            }).join('');
+    }
 
     document.getElementById('player-name').textContent = me.name;
     document.getElementById('player-score').textContent = me.score;
@@ -253,6 +353,29 @@ function renderPlayer() {
         gameCodeBox.style.display = 'none';
     }
 
+    // --- Endless Mode Actions ---
+    const endlessActions = document.getElementById('endless-game-actions');
+    if (gameState.isEndless && gameState.state !== 'waiting' && gameState.state !== 'finished') {
+        endlessActions.style.display = 'block';
+
+        const voteBtn = document.getElementById('vote-to-end-btn');
+        const voteStatus = document.getElementById('vote-status');
+
+        if (gameState.votesToEnd.includes(me.id)) {
+            voteBtn.disabled = true;
+            voteBtn.textContent = 'Voted!';
+        } else {
+            voteBtn.disabled = false;
+            voteBtn.textContent = 'Vote to End Game';
+        }
+
+        const totalPlayers = gameState.players.filter(p => p.name !== 'TV_BOARD').length;
+        const requiredVotes = Math.ceil(totalPlayers / 2);
+        voteStatus.textContent = `(${gameState.votesToEnd.length}/${requiredVotes} votes to end)`;
+    } else {
+        endlessActions.style.display = 'none';
+    }
+
     if (gameState.state === 'waiting') {
         document.getElementById('lobby-view').style.display = 'block';
         document.getElementById('game-view').style.display = 'none';
@@ -261,10 +384,15 @@ function renderPlayer() {
         const playerList = document.getElementById('player-list');
         playerList.innerHTML = gameState.players
             .filter(p => p.name !== 'TV_BOARD')
-            .map(p => `<li>${p.name} ${p.id === gameState.hostId ? '(Host)' : ''}</li>`).join('');
+            .map(p => {
+                const hostIndicator = p.id === gameState.hostId ? ' (Host)' : '';
+                const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
+                const classes = p.disconnected ? 'class="disconnected"' : '';
+                return `<li ${classes}>${p.name}${hostIndicator}${disconnectedIndicator}</li>`;
+            }).join('');
 
         const startGameContainer = document.getElementById('start-game-container');
-        const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD');
+        const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
         if (isHost && activePlayers.length >= 2) {
             startGameContainer.style.display = 'block';
         } else {
