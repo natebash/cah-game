@@ -21,6 +21,11 @@
             <div id="waiting-area">
                 <h2>Waiting for players...</h2>
                 <p>Join with code <strong id="game-code-waiting">----</strong> on your phone.</p>
+                <div id="qr-code-container">
+                    <h3>Scan to Join!</h3>
+                    <div id="qr-code"></div>
+                    <p id="join-url-text"></p>
+                </div>
             </div>
 
             <div id="round-area" style="display: none;">
@@ -56,6 +61,7 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="client.js"></script>
     <footer class="site-footer">
         <p>

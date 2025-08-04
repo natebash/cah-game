@@ -135,7 +135,36 @@ function setupBoardPage() {
         }
     });
     sanitizeGameCodeInput('game-code-input-board-new');
+
+    // --- QR Code Generation ---
+    const qrCodeElement = document.getElementById('qr-code');
+    const joinUrlElement = document.getElementById('join-url-text');
+    const gameCode = getGameCodeFromURL(); // Use existing function to get 'game' parameter
+
+    if (gameCode && qrCodeElement) {
+        // Construct the full URL for players to join, using the correct 'game' parameter
+        const joinUrl = `${window.location.origin}/player.html?game=${gameCode}`;
+
+        // Update the text element with a user-friendly message
+        joinUrlElement.textContent = `Or go to: ${window.location.host}/player.html`;
+
+        // Generate the QR code using the qrcode.js library
+        // This relies on qrcode.js being included in board.html before client.js
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrCodeElement, {
+                text: joinUrl,
+                width: 128,
+                height: 128,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            console.error('QRCode library is not loaded.');
+        }
+    }
 }
+
 
 function showNotification(message, duration = 4000) {
     const banner = document.getElementById('notification-banner');
