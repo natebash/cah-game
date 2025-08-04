@@ -44,13 +44,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (page.includes('board.html')) {
                 socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
             } else if (page.includes('player.html')) {
-                // Use playerToken for rejoining, fallback to hostToken for host's first join
-                const playerName = sessionStorage.getItem('playerName');
+                let playerName = sessionStorage.getItem('playerName');
                 const playerToken = sessionStorage.getItem('playerToken');
                 const hostToken = sessionStorage.getItem('hostToken');
-                if (playerName) {
-                    socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
+
+                // If no player name, they probably came from a QR code. Prompt for a name.
+                if (!playerName) {
+                    while (!playerName || playerName.trim() === "") {
+                        playerName = prompt("Please enter your name to join the game:", "");
+                        if (playerName === null) { // User clicked 'Cancel'
+                            alert("You must enter a name to join. Redirecting to homepage.");
+                            window.location.href = '/';
+                            return; // Stop execution
+                        }
+                    }
+                    sessionStorage.setItem('playerName', playerName.trim());
+                    sessionStorage.removeItem('hostToken'); // Don't carry over host token
+                    sessionStorage.removeItem('playerToken'); // Clear any old player token
                 }
+                socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
             }
         };
 
