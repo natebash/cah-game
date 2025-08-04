@@ -142,6 +142,37 @@ function getSerializableGameState(game) {
   };
 }
 
+function getSerializableGameState(game) {
+    if (!game) return null;
+
+    // Create a deep copy of the players array, but omit the server-side-only properties
+    const serializablePlayers = game.players.map(player => {
+        const { 
+            disconnectTimeout, // <- The main problem
+            token,             // <- Client doesn't need other players' tokens
+            ...safePlayerData 
+        } = player;
+        return safePlayerData;
+    });
+
+    // Create a new game state object with only the data clients need
+    const serializableGame = {
+        ...game,
+        players: serializablePlayers,
+        // Omit server-side properties from the main game object
+        hostToken: undefined, 
+        whiteDeck: undefined, // Clients don't need the full deck
+        blackDeck: undefined, // Clients don't need the full deck
+    };
+
+    // Remove the properties from the object
+    delete serializableGame.hostToken;
+    delete serializableGame.whiteDeck;
+    delete serializableGame.blackDeck;
+
+    return serializableGame;
+}
+
 function endGame(gameCode, reason, winner = null) {
     const game = games[gameCode];
     if (!game) return;
