@@ -157,9 +157,18 @@ io.on('connection', (socket) => {
             currentCzar: null,
             currentBlackCard: null,
             submissions: {},
-            whiteDeck: shuffle([...allWhiteCards]),
-            blackDeck: shuffle([...allBlackCards])
+            whiteDeck: [], // Will be populated below
+            blackDeck: shuffle([...allBlackCards]),
         };
+
+        // Create a unique white card deck for this game with blank cards included
+        const gameWhiteDeck = [...allWhiteCards];
+        const blankCardCount = Math.floor(gameWhiteDeck.length * 0.02); // ~2% blank cards
+        for (let i = 0; i < blankCardCount; i++) {
+            gameWhiteDeck.push('___BLANK_CARD___');
+        }
+        games[gameCode].whiteDeck = shuffle(gameWhiteDeck);
+
         socket.emit('gameCreated', { code: gameCode, token: hostToken, name: name });
     });
 
@@ -227,6 +236,47 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('submitBlankCard', ({ code, cardText }) => {
+        const game = games[code];
+        const player = game ? game.players.find(p => p.id === socket.id) : null;
+        if (!game || !player || game.submissions[socket.id] || socket.id === game.currentCzar) return;
+
+        // 1. Validate
+        if (typeof cardText !== 'string' || cardText.length === 0 || cardText.length > 150) {
+            return; // Or send an error back to the user
+        }
+        const sanitizedText = cardText.trim();
+
+        // 2. Save to cards.json
+        const cardsPath = path.join(__dirname, 'public', 'cards.json');
+        try {
+            const fileContent = fs.readFileSync(cardsPath, 'utf8');
+            const data = JSON.parse(fileContent);
+            let customPack = data.find(p => p.name === "User-Submitted Pack");
+
+            // Ensure customPack and its white array exist before trying to modify it
+            if (customPack && Array.isArray(customPack.white)) {
+                // Avoid duplicates
+                if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
+                    customPack.white.push({ text: sanitizedText, pack: 999 }); // Using a high pack number for custom
+                    fs.writeFileSync(cardsPath, JSON.stringify(data, null, 4)); // Pretty print with 4 spaces
+                    // 3. Update in-memory cards for this server instance
+                    allWhiteCards.push(sanitizedText);
+                }
+            } else {
+                console.error("'User-Submitted Pack' with a 'white' array not found in cards.json. Card not saved.");
+            }
+        } catch (err) {
+            console.error("Error writing to cards.json:", err);
+        }
+
+        // 4. Handle submission (similar to 'submitCard')
+        game.submissions[socket.id] = [sanitizedText]; // Treat as a single card submission
+        const blankCardIndex = player.hand.indexOf('___BLANK_CARD___');
+        if (blankCardIndex > -1) player.hand.splice(blankCardIndex, 1);
+        checkSubmissionsAndAdvance(code);
+    });
+
     socket.on('startGame', (gameCode) => {
         const game = games[gameCode];
         if (game && socket.id === game.hostId) {
@@ -241,14 +291,18 @@ io.on('connection', (socket) => {
         game.submissions[socket.id] = data.cards;
         const player = game.players.find(p => p.id === socket.id);
         player.hand = player.hand.filter(card => !data.cards.includes(card));
-        
+        checkSubmissionsAndAdvance(data.code);
+    });
+
+    function checkSubmissionsAndAdvance(gameCode) {
+        const game = games[gameCode];
+        if (!game) return;
         const requiredSubmissions = getActivePlayers(game).length - 1;
         if (Object.keys(game.submissions).length >= requiredSubmissions) {
             game.state = 'judging';
         }
-        
-        io.to(data.code).emit('gameUpdate', game);
-    });
+        io.to(gameCode).emit('gameUpdate', game);
+    }
 
     socket.on('czarChoose', (data) => {
         const game = games[data.code];

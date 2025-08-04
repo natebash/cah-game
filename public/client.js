@@ -229,6 +229,32 @@ function setupPlayerPage() {
             document.getElementById('vote-to-end-modal').style.display = 'none';
         });
     }
+
+    // --- Blank Card Modal Logic ---
+    const blankCardModal = document.getElementById('blank-card-modal');
+    if (blankCardModal) {
+        const blankCardSubmitBtn = document.getElementById('blank-card-submit-btn');
+        const textarea = document.getElementById('blank-card-input');
+        const charCount = document.getElementById('char-count');
+
+        blankCardSubmitBtn.addEventListener('click', () => {
+            const cardText = textarea.value.trim();
+            if (cardText.length > 0 && cardText.length <= 150) {
+                socket.emit('submitBlankCard', { code: gameState.code, cardText: cardText });
+                blankCardModal.style.display = 'none';
+                textarea.value = ''; // Clear for next time
+                document.getElementById('submit-button-container').style.display = 'none'; // Hide regular submit button
+            } else {
+                showNotification('Card text must be between 1 and 150 characters.');
+            }
+        });
+
+        textarea.addEventListener('input', () => {
+            const count = textarea.value.length;
+            charCount.textContent = `${count} / 150`;
+            blankCardSubmitBtn.disabled = (count === 0);
+        });
+    }
 }
 // --- SOCKET.IO HANDLERS ---
 socket.on('gameCreated', (data) => {
@@ -499,12 +525,28 @@ function renderPlayer() {
         me.hand.forEach(cardText => {
             const cardButton = document.createElement('button');
             cardButton.className = 'card white';
-            cardButton.innerHTML = `<p>${cardText}</p>`;
-            cardButton.disabled = isCzar || submitted || gameState.state !== 'playing';
-            if (selectedCards.includes(cardText)) {
-                cardButton.classList.add('selected');
+
+            if (cardText === '___BLANK_CARD___') {
+                cardButton.innerHTML = `<p>Write your own card!</p>`;
+                cardButton.classList.add('blank');
+                cardButton.disabled = isCzar || submitted || gameState.state !== 'playing';
+                cardButton.addEventListener('click', () => {
+                    const pickCount = gameState.currentBlackCard.pick;
+                    if (pickCount > 1) {
+                        if (!confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
+                            return;
+                        }
+                    }
+                    document.getElementById('blank-card-modal').style.display = 'flex';
+                });
+            } else {
+                cardButton.innerHTML = `<p>${cardText}</p>`;
+                cardButton.disabled = isCzar || submitted || gameState.state !== 'playing';
+                if (selectedCards.includes(cardText)) {
+                    cardButton.classList.add('selected');
+                }
+                cardButton.addEventListener('click', () => handleCardSelect(cardText));
             }
-            cardButton.addEventListener('click', () => handleCardSelect(cardText));
             myHand.appendChild(cardButton);
         });
         
