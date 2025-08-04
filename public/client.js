@@ -413,6 +413,10 @@ socket.on('errorMsg', (msg) => {
     }
 });
 
+socket.on('disconnect', () => {
+  showNotification('Connection lost! Attempting to reconnect...', 999999); // Show a very long notification
+});
+
 // --- HTML TEMPLATE FUNCTIONS ---
 
 /** Creates the HTML for the player list in the lobby. */

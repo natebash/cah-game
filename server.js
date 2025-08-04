@@ -8,8 +8,10 @@ const crypto = require('crypto'); // For generating the token
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
-
+const io = socketIo(server, {
+  pingInterval: 10000, // Sends a ping every 10 seconds
+  pingTimeout: 5000,   // Waits 5 seconds for the pong response before disconnecting
+});
 app.use(express.static('public'));
 
 // --- Card Loading Logic ---
