@@ -485,3 +485,35 @@ button:hover {
     word-break: break-all;
 }
 
+        /* New styles for side-by-side layout */
+        #round-area .round-content-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        #black-card-area {
+            flex: 0 0 300px; /* Don't grow, don't shrink, base width 300px */
+            position: sticky; /* Make it stick to the top on scroll */
+            top: 1rem;
+        }
+
+        #submissions-wrapper {
+            flex: 1;
+            min-width: 0; /* Prevents flexbox overflow issues */
+        }
+
+        /* Adjustments for smaller screens */
+        @media (max-width: 850px) {
+            #round-area .round-content-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+            #black-card-area {
+                position: static; /* Remove sticky positioning on small screens */
+                margin-bottom: 1rem;
+            }
+        }

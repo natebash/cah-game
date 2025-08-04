@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Board</title>
     <link rel="stylesheet" href="style.css">
+    
 </head>
 <body>
     <div class="container board-view">
@@ -29,14 +30,18 @@
             </div>
 
             <div id="round-area" style="display: none;">
-                <div id="black-card-area">
-                    <div class="card black">
-                        <p id="black-card-text">The black card will appear here.</p>
+                <div class="round-content-wrapper">
+                    <div id="black-card-area">
+                        <div class="card black">
+                            <p id="black-card-text">The black card will appear here.</p>
+                        </div>
+                    </div>
+                    <div id="submissions-wrapper">
+                        <h2 id="submissions-header">Submissions:</h2>
+                        <div id="submissions-area">
+                        </div>
                     </div>
                 </div>
-                <h2 id="submissions-header">Submissions:</h2>
-                <div id="submissions-area">
-                    </div>
                  <div id="winner-announcement" class="winner-banner" style="display: none;">
                     </div>
             </div>
