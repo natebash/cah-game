@@ -9,8 +9,8 @@ const crypto = require('crypto'); // For generating the token
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  pingInterval: 10000, // Sends a ping every 10 seconds
-  pingTimeout: 5000,   // Waits 5 seconds for the pong response before disconnecting
+  pingInterval: 25000, // How often to send a ping in ms (default: 25000)
+  pingTimeout: 20000,  // How long to wait for a pong response in ms (default: 20000)
 });
 app.use(express.static('public'));
 
@@ -91,8 +91,9 @@ function startNewRound(gameCode) {
 
     // Ensure there are enough players to continue
     const activePlayers = getActivePlayers(game);
-    if (activePlayers.length < 1) { // Allow game to continue with 1 active player, they just wait
+    if (activePlayers.length < 2) { // Need at least 2 players (1 czar, 1 player) for a round
         game.state = 'waiting';
+        game.currentCzar = null; // No czar if we're waiting
         io.to(gameCode).emit('gameUpdate', game);
         return;
     }
@@ -387,7 +388,7 @@ io.on('connection', (socket) => {
                         game.players.splice(playerIndex, 1);
                         io.to(code).emit('gameUpdate', game);
                     }
-                }, 120000); // 2 minutes
+                }, 1200000); // 2 minutes
 
                 const remainingActivePlayers = getActivePlayers(game);
 

@@ -35,42 +35,43 @@ document.addEventListener('DOMContentLoaded', () => {
         setupBoardPage();
     }
 
-    // Auto-join if game code is in URL
-    const gameCode = getGameCodeFromURL();
-    if (gameCode) {
-        const join = () => {
-            if (page.includes('board.html')) {
-                socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
-            } else if (page.includes('player.html')) {
-                let playerName = sessionStorage.getItem('playerName');
-                const playerToken = sessionStorage.getItem('playerToken');
-                const hostToken = sessionStorage.getItem('hostToken');
-
-                // If no player name, they probably came from a QR code. Prompt for a name.
-                if (!playerName) {
-                    while (!playerName || playerName.trim() === "") {
-                        playerName = prompt("Please enter your name to join the game:", "");
-                        if (playerName === null) { // User clicked 'Cancel'
-                            alert("You must enter a name to join. Redirecting to homepage.");
-                            window.location.href = '/';
-                            return; // Stop execution
-                        }
-                    }
-                    sessionStorage.setItem('playerName', playerName.trim());
-                    sessionStorage.removeItem('hostToken'); // Don't carry over host token
-                    sessionStorage.removeItem('playerToken'); // Clear any old player token
-                }
-                socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
-            }
-        };
-
-        if (socket.connected) {
-            join();
-        } else {
-            socket.on('connect', join);
-        }
+    // Initial connection and auto-rejoin logic
+    if (socket.connected) {
+        joinGameFromURL();
+    } else {
+        socket.on('connect', joinGameFromURL);
     }
 });
+
+function joinGameFromURL() {
+    const gameCode = getGameCodeFromURL();
+    if (!gameCode) return;
+
+    const page = window.location.pathname;
+
+    if (page.includes('board.html')) {
+        socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
+    } else if (page.includes('player.html')) {
+        let playerName = sessionStorage.getItem('playerName');
+        const playerToken = sessionStorage.getItem('playerToken');
+        const hostToken = sessionStorage.getItem('hostToken');
+
+        if (!playerName) {
+            while (!playerName || playerName.trim() === "") {
+                playerName = prompt("Please enter your name to join the game:", "");
+                if (playerName === null) {
+                    alert("You must enter a name to join. Redirecting to homepage.");
+                    window.location.href = '/';
+                    return;
+                }
+            }
+            sessionStorage.setItem('playerName', playerName.trim());
+            sessionStorage.removeItem('hostToken');
+            sessionStorage.removeItem('playerToken');
+        }
+        socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
+    }
+}
 
 function setupIndexPage() {
     // --- Menu Navigation ---
@@ -339,6 +340,11 @@ socket.on('joinSuccess', (data) => {
 });
 
 socket.on('gameUpdate', (game) => {
+    // If the state transitions to 'playing', it's a new round. Reset Czar selection.
+    if (game.state === 'playing' && gameState.state !== 'playing') {
+        czarSelection = null;
+    }
+
     gameState = game;
     // Reset selection on update unless we are in the middle of judging
     if (gameState.state !== 'judging') {
@@ -405,16 +411,29 @@ socket.on('youWereKicked', () => {
 });
 
 socket.on('errorMsg', (msg) => {
+    // Critical errors that should send the user home
+    const criticalErrors = ['Game not found.', 'That name is already taken.'];
+    if (criticalErrors.includes(msg)) {
+        alert(msg + "\n\nYou will be redirected to the homepage.");
+        window.location.href = '/';
+        return;
+    }
+
     const errorEl = document.getElementById('error-message');
-    if (errorEl) {
+    if (errorEl) { // This is on the index page
         errorEl.textContent = msg;
-    } else {
-        alert(msg);
+    } else { // For non-critical errors on other pages
+        showNotification(msg, 5000);
     }
 });
 
 socket.on('disconnect', () => {
   showNotification('Connection lost! Attempting to reconnect...', 999999); // Show a very long notification
+});
+
+socket.on('reconnect', () => {
+    showNotification('Reconnected successfully!', 4000);
+    joinGameFromURL();
 });
 
 // --- HTML TEMPLATE FUNCTIONS ---
