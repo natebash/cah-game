@@ -1,9 +1,8 @@
 // client.js
-const socket = io();
+const socket = io({ transports: ['websocket'] });
 
 // --- STATE MANAGEMENT ---
 let gameState = {};
-let myPlayerId = null;
 let selectedCards = [];
 let czarSelection = null;
 
@@ -40,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameCode = getGameCodeFromURL();
     if (gameCode) {
         const join = () => {
-            myPlayerId = socket.id;
             if (page.includes('board.html')) {
                 socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
             } else if (page.includes('player.html')) {
@@ -233,7 +231,7 @@ function setupPlayerPage() {
         submitCardsBtn.addEventListener('click', () => {
             if (selectedCards.length > 0) {
                 socket.emit('submitCard', { code: gameState.code, cards: selectedCards });
-                document.getElementById('submit-button-container').style.display = 'none';
+                submitCardsBtn.parentElement.style.display = 'none';
             }
         });
     }
@@ -243,7 +241,7 @@ function setupPlayerPage() {
         czarConfirmBtn.addEventListener('click', () => {
             if (czarSelection) {
                 socket.emit('czarChoose', { code: gameState.code, winningCards: czarSelection });
-                czarSelection = null; // Reset after confirming
+                czarConfirmBtn.parentElement.style.display = 'none';
             }
         });
     }
@@ -271,6 +269,36 @@ function setupPlayerPage() {
         });
     }
 
+    // --- Event Delegation for Dynamic Elements ---
+    document.body.addEventListener('click', (e) => {
+        // Kick Player Button in Lobby
+        if (e.target.matches('.kick-btn')) {
+            const playerIdToKick = e.target.dataset.playerId;
+            socket.emit('kickPlayer', { code: gameState.code, playerIdToKick });
+        }
+
+        // Player Hand Card Selection
+        const cardButton = e.target.closest('#my-hand .card.white');
+        if (cardButton && !cardButton.disabled) {
+            const cardText = cardButton.dataset.cardText;
+            if (cardText === '___BLANK_CARD___') {
+                const pickCount = gameState.currentBlackCard.pick;
+                if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
+                    return;
+                }
+                document.getElementById('blank-card-modal').style.display = 'flex';
+            } else {
+                handleCardSelect(cardText);
+            }
+        }
+
+        // Czar Card Selection
+        const cardGroup = e.target.closest('#cards-to-judge .card-group');
+        if (cardGroup) {
+            handleCzarSelect(JSON.parse(cardGroup.dataset.submission));
+        }
+    });
+
     // --- Blank Card Modal Logic ---
     const blankCardModal = document.getElementById('blank-card-modal');
     if (blankCardModal) {
@@ -284,7 +312,7 @@ function setupPlayerPage() {
                 socket.emit('submitBlankCard', { code: gameState.code, cardText: cardText });
                 blankCardModal.style.display = 'none';
                 textarea.value = ''; // Clear for next time
-                document.getElementById('submit-button-container').style.display = 'none'; // Hide regular submit button
+                document.getElementById('submit-cards-btn').parentElement.style.display = 'none'; // Hide regular submit button
             } else {
                 showNotification('Card text must be between 1 and 150 characters.');
             }
@@ -297,6 +325,7 @@ function setupPlayerPage() {
         });
     }
 }
+
 // --- SOCKET.IO HANDLERS ---
 socket.on('gameCreated', (data) => {
     sessionStorage.setItem('playerName', data.name);
@@ -336,18 +365,17 @@ socket.on('voteToEndResult', ({ passed, reason }) => {
     if (modal) {
         modal.style.display = 'none';
     }
-    // Let the user know the outcome of the vote
     showNotification(reason);
 });
 
-socket.on('gameOver', ({ reason, winner }) => {    
+socket.on('gameOver', ({ reason, winner }) => {
     if (window.location.pathname.includes('board.html')) {
         document.getElementById('waiting-area').style.display = 'none';
         document.getElementById('round-area').style.display = 'none';
-        
+
         const gameOverArea = document.getElementById('game-over-area');
         const finalWinnerEl = document.getElementById('final-winner-announcement');
-        
+
         if (gameOverArea && finalWinnerEl) {
             let message = `<h2>Game Over!</h2><p>${reason}</p>`;
             if (winner) {
@@ -361,8 +389,7 @@ socket.on('gameOver', ({ reason, winner }) => {
         if (gameOverView) {
             document.getElementById('game-over-reason').textContent = reason;
             document.getElementById('game-over-winner').textContent = winner ? winner.name : 'N/A';
-            
-            document.getElementById('lobby-view').style.display = 'none';
+
             document.getElementById('game-view').style.display = 'none';
             document.getElementById('endless-game-actions').style.display = 'none';
             gameOverView.style.display = 'block';
@@ -386,26 +413,97 @@ socket.on('errorMsg', (msg) => {
     }
 });
 
-// --- RENDER FUNCTIONS ---
+// --- HTML TEMPLATE FUNCTIONS ---
+
+/** Creates the HTML for the player list in the lobby. */
+function createLobbyPlayerListHTML(players, isHost, myId) {
+    return players
+        .filter(p => p.name !== 'TV_BOARD')
+        .map(player => {
+            const hostIndicator = player.id === gameState.hostId ? ' (Host)' : '';
+            const disconnectedIndicator = player.disconnected ? ' (disconnected)' : '';
+            const kickButton = (isHost && player.id !== myId)
+                ? `<button class="kick-btn" data-player-id="${player.id}">Kick</button>`
+                : '';
+            const disconnectedClass = player.disconnected ? ' class="disconnected"' : '';
+
+            return `<li${disconnectedClass}>${player.name}${hostIndicator}${disconnectedIndicator}${kickButton}</li>`;
+        }).join('');
+}
+
+/** Creates the HTML for the player's hand of cards. */
+function createPlayerHandHTML(me, isCzar, submitted) {
+    return me.hand.map(cardText => {
+        const isDisabled = isCzar || submitted || gameState.state !== 'playing';
+        const isSelected = selectedCards.includes(cardText);
+        const isBlank = cardText === '___BLANK_CARD___';
+
+        let classes = 'card white';
+        if (isBlank) classes += ' blank';
+        if (isSelected) classes += ' selected';
+
+        const content = isBlank ? `<p>Write your own card!</p>` : `<p>${cardText}</p>`;
+
+        return `<button class="${classes}" data-card-text="${cardText}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
+    }).join('');
+}
+
+/** Creates the HTML for the submissions the Czar needs to judge. */
+function createCzarChoicesHTML(submissions, czarSelection) {
+    let html = '';
+    for (const playerId in submissions) {
+        const submission = submissions[playerId];
+        const isSelected = czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission);
+        const selectedClass = isSelected ? ' czar-selected' : '';
+
+        html += `<div class="card-group interactive${selectedClass}" data-submission='${JSON.stringify(submission)}'>
+            ${submission.map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}
+        </div>`;
+    }
+    return html;
+}
+
+/** Creates the HTML for the main scoreboard on the board view. */
+function createBoardScoreboardHTML(players, currentCzarId) {
+    return players
+        .filter(p => p.name !== 'TV_BOARD')
+        .sort((a, b) => b.score - a.score)
+        .map(p => {
+            const isCzar = p.id === currentCzarId;
+            const disconnectedClass = p.disconnected ? ' disconnected' : '';
+            const czarClass = isCzar ? ' czar' : '';
+            const czarIndicator = isCzar ? ' (Czar)' : '';
+            const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
+
+            return `<div class="score-item ${disconnectedClass} ${czarClass}">${p.name}: ${p.score}${czarIndicator}${disconnectedIndicator}</div>`;
+        }).join('');
+}
+
+/** Creates the HTML for the submissions area on the board view. */
+function createBoardSubmissionsHTML(state, submissions) {
+    if (state === 'judging') {
+        let html = '';
+        for (const playerId in submissions) {
+            html += `<div class="card-group">
+                ${submissions[playerId].map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}
+            </div>`;
+        }
+        return html;
+    } else {
+        const submissionCount = Object.keys(submissions).length;
+        return '<div class="card white back"></div>'.repeat(submissionCount);
+    }
+}
+
+
+// --- RENDER LOGIC ---
 function renderBoard() {
     if (gameState.state === 'finished') {
         return; // Don't re-render if the game is over
     }
 
     document.getElementById('game-code-display').textContent = gameState.code;
-    
-    document.getElementById('scoreboard').innerHTML = gameState.players
-        .filter(p => p.name !== 'TV_BOARD')
-        .sort((a, b) => b.score - a.score)
-        .map(p => {
-            const disconnected = p.disconnected ? ' disconnected' : '';
-            const isCzar = p.id === gameState.currentCzar;
-            let classes = 'score-item' + disconnected;
-            if (isCzar) classes += ' czar';
-            const czarIndicator = isCzar ? ' (Czar)' : '';
-            const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
-            return `<div class="${classes}">${p.name}: ${p.score}${czarIndicator}${disconnectedIndicator}</div>`;
-        }).join('');
+    document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
 
     if (gameState.state === 'waiting') {
         document.getElementById('waiting-area').style.display = 'block';
@@ -419,26 +517,7 @@ function renderBoard() {
             document.getElementById('black-card-text').innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
         }
 
-        const submissionsArea = document.getElementById('submissions-area');
-        submissionsArea.innerHTML = '';
-        if (gameState.state === 'judging') {
-            for (const playerId in gameState.submissions) {
-                const cardGroup = document.createElement('div');
-                cardGroup.className = 'card-group';
-                gameState.submissions[playerId].forEach(cardText => {
-                    const cardDiv = document.createElement('div');
-                    cardDiv.className = 'card white';
-                    cardDiv.innerHTML = `<p>${cardText}</p>`;
-                    cardGroup.appendChild(cardDiv);
-                });
-                submissionsArea.appendChild(cardGroup);
-            }
-        } else {
-            const submissionCount = Object.keys(gameState.submissions).length;
-            for (let i = 0; i < submissionCount; i++) {
-                submissionsArea.innerHTML += '<div class="card white back"></div>';
-            }
-        }
+        document.getElementById('submissions-area').innerHTML = createBoardSubmissionsHTML(gameState.state, gameState.submissions);
         
         const winnerAnnouncement = document.getElementById('winner-announcement');
         if (gameState.roundWinnerInfo) {
@@ -518,29 +597,7 @@ function renderPlayer() {
         document.getElementById('lobby-view').style.display = 'block';
         document.getElementById('game-view').style.display = 'none';
         document.getElementById('player-status').textContent = "Waiting for players to join...";
-        
-        const playerList = document.getElementById('player-list');
-        playerList.innerHTML = ''; // Clear the list
-
-        gameState.players.filter(p => p.name !== 'TV_BOARD').forEach(player => {
-            const li = document.createElement('li');
-            const hostIndicator = player.id === gameState.hostId ? ' (Host)' : '';
-            const disconnectedIndicator = player.disconnected ? ' (disconnected)' : '';
-            li.textContent = `${player.name}${hostIndicator}${disconnectedIndicator}`;
-            if (player.disconnected) {
-                li.classList.add('disconnected');
-            }
-
-            // Add a kick button if the current user is the host and the player is not the host
-            if (isHost && player.id !== socket.id) {
-                const kickBtn = document.createElement('button');
-                kickBtn.textContent = 'Kick';
-                kickBtn.className = 'kick-btn';
-                kickBtn.onclick = () => socket.emit('kickPlayer', { code: gameState.code, playerIdToKick: player.id });
-                li.appendChild(kickBtn);
-            }
-            playerList.appendChild(li);
-        });
+        document.getElementById('player-list').innerHTML = createLobbyPlayerListHTML(gameState.players, isHost, socket.id);
 
         const startGameContainer = document.getElementById('start-game-container');
         const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
@@ -561,49 +618,28 @@ function renderPlayer() {
         const isCzar = gameState.currentCzar === socket.id;
         const submitted = !!gameState.submissions[socket.id];
         
-        const myHand = document.getElementById('my-hand');
-        myHand.innerHTML = '';
-        me.hand.forEach(cardText => {
-            const cardButton = document.createElement('button');
-            cardButton.className = 'card white';
-
-            if (cardText === '___BLANK_CARD___') {
-                cardButton.innerHTML = `<p>Write your own card!</p>`;
-                cardButton.classList.add('blank');
-                cardButton.disabled = isCzar || submitted || gameState.state !== 'playing';
-                cardButton.addEventListener('click', () => {
-                    const pickCount = gameState.currentBlackCard.pick;
-                    if (pickCount > 1) {
-                        if (!confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
-                            return;
-                        }
-                    }
-                    document.getElementById('blank-card-modal').style.display = 'flex';
-                });
-            } else {
-                cardButton.innerHTML = `<p>${cardText}</p>`;
-                cardButton.disabled = isCzar || submitted || gameState.state !== 'playing';
-                if (selectedCards.includes(cardText)) {
-                    cardButton.classList.add('selected');
-                }
-                cardButton.addEventListener('click', () => handleCardSelect(cardText));
-            }
-            myHand.appendChild(cardButton);
-        });
-        
+        const myHandDiv = document.getElementById('my-hand');
         const czarJudgingArea = document.getElementById('czar-judging-area');
         const playerStatus = document.getElementById('player-status');
         czarJudgingArea.style.display = 'none';
 
         if (isCzar) {
+            // If the player is the Czar, hide their hand.
+            myHandDiv.style.display = 'none';
+            myHandDiv.innerHTML = ''; // Clear the hand to be safe
+
             if (gameState.state === 'judging') {
                 playerStatus.textContent = 'You are the Card Czar. Choose your favorite!';
                 czarJudgingArea.style.display = 'block';
-                renderCzarChoices();
+                document.getElementById('cards-to-judge').innerHTML = createCzarChoicesHTML(gameState.submissions, czarSelection);
             } else {
                 playerStatus.textContent = "You are the Card Czar. Sit back and wait.";
             }
         } else {
+            // If the player is not the Czar, show and render their hand.
+            myHandDiv.style.display = 'flex';
+            myHandDiv.innerHTML = createPlayerHandHTML(me, isCzar, submitted);
+
             const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
             if (submitted) {
                 playerStatus.textContent = 'Your submission is in. Waiting for others.';
@@ -614,6 +650,13 @@ function renderPlayer() {
             }
         }
     }
+}
+
+function handleCzarSelect(submission) {
+    czarSelection = submission;
+    document.getElementById('czar-confirm-container').style.display = 'block';
+    // Re-render to show the highlight
+    document.getElementById('cards-to-judge').innerHTML = createCzarChoicesHTML(gameState.submissions, czarSelection);
 }
 
 function handleCardSelect(cardText) {
@@ -628,8 +671,6 @@ function handleCardSelect(cardText) {
         }
     }
     
-    renderPlayer(); // Re-render to show selection state
-    
     // Update submit button visibility
     const submitContainer = document.getElementById('submit-button-container');
     if (selectedCards.length === pickCount) {
@@ -637,43 +678,8 @@ function handleCardSelect(cardText) {
     } else {
         submitContainer.style.display = 'none';
     }
-}
-
-function renderCzarChoices() {
-    const cardsToJudge = document.getElementById('cards-to-judge');
-    const confirmContainer = document.getElementById('czar-confirm-container');
-    cardsToJudge.innerHTML = '';
-
-    for (const playerId in gameState.submissions) {
-        const submission = gameState.submissions[playerId];
-        const cardGroup = document.createElement('div');
-        cardGroup.className = 'card-group interactive';
-
-        // Check if this submission is the one the Czar has pre-selected
-        if (czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission)) {
-            cardGroup.classList.add('czar-selected');
-        }
-        
-        submission.forEach(cardText => {
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'card white';
-            cardDiv.innerHTML = `<p>${cardText}</p>`;
-            cardGroup.appendChild(cardDiv);
-        });
-
-        cardGroup.addEventListener('click', () => {
-            czarSelection = submission; // Pre-select this card
-            renderCzarChoices(); // Re-render to show the highlight
-        });
-        cardsToJudge.appendChild(cardGroup);
-    }
-    
-    // Show or hide the confirm button based on whether a card is selected
-    if (czarSelection) {
-        confirmContainer.style.display = 'block';
-    } else {
-        confirmContainer.style.display = 'none';
-    }
+    // Re-render to show selection state
+    renderPlayer();
 }
 
 function renderVoteDisplay() {
