@@ -68,17 +68,6 @@ function firstRound(gameCode) {
 
     game.state = 'playing';
     
-    // Deal 10 cards to each player
-    game.players.forEach(player => {
-        if (player.name !== 'TV_BOARD') {
-            for(let i=0; i<10; i++){
-                if (game.whiteDeck.length > 0) {
-                    player.hand.push(game.whiteDeck.pop());
-                }
-            }
-        }
-    });
-
     startNewRound(gameCode);
 }
 
@@ -122,6 +111,37 @@ function startNewRound(gameCode) {
     });
 
     io.to(gameCode).emit('gameUpdate', game);
+}
+
+function getSerializableGameState(game) {
+    if (!game) return null;
+
+    // Create a deep copy of the players array, but omit the server-side-only properties
+    const serializablePlayers = game.players.map(player => {
+        const { 
+            disconnectTimeout, // <- The main problem
+            token,             // <- Client doesn't need other players' tokens
+            ...safePlayerData 
+        } = player;
+        return safePlayerData;
+    });
+
+    // Create a new game state object with only the data clients need
+    const serializableGame = {
+        ...game,
+        players: serializablePlayers,
+        // Omit server-side properties from the main game object
+        hostToken: undefined, 
+        whiteDeck: undefined, // Clients don't need the full deck
+        blackDeck: undefined, // Clients don't need the full deck
+    };
+
+    // Remove the properties from the object
+    delete serializableGame.hostToken;
+    delete serializableGame.whiteDeck;
+    delete serializableGame.blackDeck;
+
+    return serializableGame;
 }
 
 function endGame(gameCode, reason, winner = null) {
@@ -192,7 +212,7 @@ io.on('connection', (socket) => {
             rejoiningPlayer.id = socket.id;
             socket.join(data.code);
             console.log(`Player ${data.name} reconnected to game ${data.code}`);
-            io.to(data.code).emit('gameUpdate', game);
+            io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
             return;
         }
 
@@ -223,7 +243,7 @@ io.on('connection', (socket) => {
 
         // Send the player their unique token for rejoining purposes
         socket.emit('joinSuccess', { name: player.name, token: player.token });
-        io.to(data.code).emit('gameUpdate', game);
+        io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
     
     socket.on('kickPlayer', (data) => {
@@ -234,7 +254,7 @@ io.on('connection', (socket) => {
             if (playerIndex > -1) {
                 const kickedPlayer = game.players.splice(playerIndex, 1)[0];
                 io.to(kickedPlayer.id).emit('youWereKicked');
-                io.to(data.code).emit('gameUpdate', game); // Update everyone else
+                io.to(data.code).emit('gameUpdate', getSerializableGameState(game)); // Update everyone else
             }
         }
     });
@@ -319,7 +339,7 @@ io.on('connection', (socket) => {
             const winner = game.players.find(p => p.id === winningPlayerId);
             winner.score++;
             game.roundWinnerInfo = { name: winner.name, cards: data.winningCards };
-            io.to(data.code).emit('gameUpdate', game);
+            io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
 
             if (!game.isEndless && winner.score >= game.winTarget) {
                 setTimeout(() => endGame(data.code, `${winner.name} reached the score limit!`, winner), 5000);
@@ -339,7 +359,7 @@ io.on('connection', (socket) => {
         game.voteToEndState.votes = { [socket.id]: 'yes' }; // Initiator automatically votes yes
 
         io.to(data.code).emit('voteToEndStarted', { initiatorName: player.name });
-        io.to(data.code).emit('gameUpdate', game);
+        io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
 
     socket.on('castVote', (data) => { // data: { code, vote: 'yes'/'no' }
@@ -362,7 +382,7 @@ io.on('connection', (socket) => {
             // No need to reset state here, endGame handles it
         }
         // Always update the game state to show vote progress
-        io.to(data.code).emit('gameUpdate', game);
+        io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
 
     socket.on('disconnect', () => {
