@@ -669,6 +669,8 @@ function renderPlayer() {
         const czarJudgingArea = document.getElementById('czar-judging-area');
         const playerStatus = document.getElementById('player-status');
         czarJudgingArea.style.display = 'none';
+        // Ensure the hand's special class is removed if the player becomes the czar
+        if (myHandDiv) myHandDiv.classList.remove('selection-complete');
 
         if (isCzar) {
             // If the player is the Czar, hide their hand.
@@ -686,6 +688,14 @@ function renderPlayer() {
             // If the player is not the Czar, show and render their hand.
             myHandDiv.style.display = 'flex';
             myHandDiv.innerHTML = createPlayerHandHTML(me, isCzar, submitted);
+
+            // Add or remove the 'selection-complete' class to trigger card hiding animation
+            const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
+            if (selectedCards.length === pickCount) {
+                myHandDiv.classList.add('selection-complete');
+            } else {
+                myHandDiv.classList.remove('selection-complete');
+            }
 
             const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
             if (submitted) {

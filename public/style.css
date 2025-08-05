@@ -150,27 +150,44 @@ button:hover {
 #submissions-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
 .card-group { display: flex; gap: 5px; }
 #submissions-area .card-group .card.white { width: 220px; height: 300px; }
+
 .winner-banner {
     background-color: #f9a825;
     color: #1a1a1a;
     border-radius: 10px;
-    font-size: 1.2rem; /* Adjusted for player view */
     font-weight: bold;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 1001;
+    width: 90%;
+    max-width: 500px;
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-    max-height: 0;
-    padding: 0 20px;
-    margin: 0 auto;
-    overflow: hidden;
-    transition: all 0.4s ease-in-out;
+    transform: translate(-50%, -50%) scale(0.9);
+    pointer-events: none;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    padding: 20px;
+    text-align: center;
 }
+
 .winner-banner.visible {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    max-height: 300px; /* Ample height for content */
-    padding: 20px;
-    margin-top: 20px;
-    margin-bottom: 20px;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+.winner-banner .card-group {
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.winner-banner .card {
+    width: 120px;
+    height: 160px;
+    font-size: 0.8rem;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 /* --- Submission Reveal Animation --- */
@@ -233,12 +250,32 @@ button:hover {
     min-height: 80px; margin-bottom: 20px; font-size: 1rem;
 }
 
-#my-hand, #cards-to-judge {
-    display: flex; flex-direction: column; gap: 10px;
+/* Use margin instead of gap for more control over collapsing items */
+#my-hand,
+#cards-to-judge {
+    display: flex;
+    flex-direction: column;
+}
+
+#my-hand .card.white,
+#cards-to-judge .card-group {
+    margin-bottom: 10px;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out, border-width 0.3s ease-out;
 }
 
 #my-hand .card.white, #cards-to-judge .card.white {
     width: 100%; min-height: 100px; font-size: 1rem;
+}
+
+/* When selection is complete, hide unselected cards smoothly */
+#my-hand.selection-complete .card.white:not(.selected) {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-width: 0;
+    overflow: hidden;
 }
 
 #submit-button-container {
