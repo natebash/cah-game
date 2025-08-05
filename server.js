@@ -114,34 +114,32 @@ function startNewRound(gameCode) {
 }
 
 function getSerializableGameState(game) {
-    if (!game) return null;
+  if (!game) return null;
 
-    // Create a deep copy of the players array, but omit the server-side-only properties
-    const serializablePlayers = game.players.map(player => {
-        const { 
-            disconnectTimeout, // <- The main problem
-            token,             // <- Client doesn't need other players' tokens
-            ...safePlayerData 
-        } = player;
-        return safePlayerData;
-    });
+  // Create a "safe" version of the game state to send to clients,
+  // removing sensitive or server-only data.
+  const {
+    whiteDeck, // Don't send the entire deck to clients.
+    blackDeck, // Don't send the entire deck to clients.
+    hostToken, // This is a secret token for the host only.
+    ...safeGameData // Keep the rest of the game properties.
+  } = game;
 
-    // Create a new game state object with only the data clients need
-    const serializableGame = {
-        ...game,
-        players: serializablePlayers,
-        // Omit server-side properties from the main game object
-        hostToken: undefined, 
-        whiteDeck: undefined, // Clients don't need the full deck
-        blackDeck: undefined, // Clients don't need the full deck
-    };
+  // Now, do the same for the players array.
+  const serializablePlayers = game.players.map(player => {
+    const {
+      disconnectTimeout, // This is a server-side object and shouldn't be sent.
+      token, // This is a secret token for rejoining.
+      ...safePlayerData // Keep the rest of the player properties.
+    } = player;
+    return safePlayerData;
+  });
 
-    // Remove the properties from the object
-    delete serializableGame.hostToken;
-    delete serializableGame.whiteDeck;
-    delete serializableGame.blackDeck;
-
-    return serializableGame;
+  // Return a new object with the safe game data and the sanitized players list.
+  return {
+    ...safeGameData,
+    players: serializablePlayers,
+  };
 }
 
 function endGame(gameCode, reason, winner = null) {
@@ -216,8 +214,8 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Prevent new players with the same name as an active player
-        if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase() && !p.disconnected)) {
+        // Prevent new players from joining with a name that is already in use (active or disconnected).
+        if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase())) {
             return socket.emit('errorMsg', 'That name is already taken.');
         }
         
