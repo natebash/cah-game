@@ -52,25 +52,34 @@ function joinGameFromURL() {
     if (page.includes('board.html')) {
         socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
     } else if (page.includes('player.html')) {
-        let playerName = sessionStorage.getItem('playerName');
-        const playerToken = sessionStorage.getItem('playerToken');
-        const hostToken = sessionStorage.getItem('hostToken');
+       // This is the new, corrected code
+let playerName = sessionStorage.getItem('playerName');
+const playerToken = sessionStorage.getItem('playerToken');
+const hostToken = sessionStorage.getItem('hostToken');
 
-        if (!playerName) {
-            while (!playerName || playerName.trim() === "") {
-                playerName = prompt("Please enter your name to join the game:", "");
-                if (playerName === null) {
-                    alert("You must enter a name to join. Redirecting to homepage.");
-                    window.location.href = '/';
-                    return;
-                }
-            }
-            sessionStorage.setItem('playerName', playerName.trim());
-            sessionStorage.removeItem('hostToken');
-            sessionStorage.removeItem('playerToken');
+// If the player has no token, they are a new player.
+// We should ignore any leftover name from a previous session and force a prompt.
+if (!playerToken && !hostToken) {
+    playerName = null;
+}
+
+if (!playerName) {
+    while (!playerName || playerName.trim() === "") {
+        playerName = prompt("Please enter your name to join the game:", "");
+        if (playerName === null) {
+            alert("You must enter a name to join. Redirecting to homepage.");
+            window.location.href = '/';
+            return;
         }
-        socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
+    // Since we prompted for a name, this is a fresh join.
+    // Store the new name and clear any old tokens.
+    sessionStorage.setItem('playerName', playerName.trim());
+    sessionStorage.removeItem('playerToken');
+    sessionStorage.removeItem('hostToken');
+}
+// Now, we can safely attempt to join the game.
+socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });}
 }
 
 function setupIndexPage() {
