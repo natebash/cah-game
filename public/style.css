@@ -126,18 +126,108 @@ button:hover {
 
 /* --- TV Board View --- */
 .board-view header {
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
-#scoreboard { display: flex; gap: 20px; }
-.score-item { background: #3a3a3a; padding: 10px 15px; border-radius: 8px; }
-#black-card-area .card.black {
-    width: 300px; height: 420px; font-size: 1.8rem; margin: 0 auto 30px auto;
-}
-#submissions-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-.card-group { display: flex; gap: 5px; }
-#submissions-area .card-group .card.white { width: 220px; height: 300px; }
-.winner-banner { margin-top: 30px; padding: 20px; background-color: #f9a825; color: #1a1a1a; border-radius: 10px; font-size: 1.5rem; font-weight: bold; }
 
+/* MODIFIED FOR DYNAMIC RESIZING */
+#scoreboard {
+    display: flex;             /* Arrange score items in a row */
+    flex-direction: row;       /* Ensure horizontal layout */
+    justify-content: flex-end; /* Align to the right */
+    align-items: center;       /* Center items vertically */
+    width: 60%;                /* Take up a good portion of the header */
+    overflow: hidden;          /* IMPORTANT: Hide any potential scrollbar */
+    white-space: nowrap;       /* Keep all items on a single line */
+}
+
+/* MODIFIED FOR DYNAMIC RESIZING */
+.score-item {
+    padding: 10px 15px;
+    margin: 0 5px;
+    background: #3a3a3a;
+    border-radius: 8px;
+    font-size: 1.5rem;         /* Set a large default font size */
+    flex-shrink: 0;            /* Prevent items from squishing */
+    transition: font-size 0.3s ease-in-out; /* Animate size changes */
+}
+
+.score-item.czar {
+    color: #f9a825;
+    border: 1px solid #f9a825;
+}
+
+.score-item.disconnected {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+#black-card-area .card.black {
+    width: 300px;
+    height: 420px;
+    font-size: 1.8rem;
+    margin: 0 auto 30px auto;
+}
+
+#submissions-area {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+.card-group {
+    display: flex;
+    gap: 5px;
+}
+
+#submissions-area .card-group .card.white {
+    width: 220px;
+    height: 300px;
+}
+
+/* --- Winner Banner Pop-up Style --- */
+.winner-banner {
+    position: fixed; /* Takes it out of the normal flow and positions it relative to the screen */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* This is the trick to perfectly center it */
+    width: 90%;
+    max-width: 700px;
+    padding: 25px 30px;
+    background-color: #f9a825;
+    color: #1a1a1a;
+    border-radius: 15px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    z-index: 1000; /* Ensures it appears on top of everything else */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    
+    /* Animation properties */
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) scale(0.9);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+}
+
+/* New class to be added by JavaScript to show the banner */
+.winner-banner.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.winner-banner p {
+    margin: 0 0 15px 0;
+}
+
+/* The card group inside the banner should be centered */
+.winner-banner .card-group {
+    justify-content: center;
+}
 /* --- Player Phone View --- */
 .player-view header {
     display: flex;

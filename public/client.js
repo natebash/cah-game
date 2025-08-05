@@ -540,7 +540,7 @@ function renderBoard() {
 
     document.getElementById('game-code-display').textContent = gameState.code;
     document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
-
+    adjustScoreboardFontSize();
     if (gameState.state === 'waiting') {
         document.getElementById('waiting-area').style.display = 'block';
         document.getElementById('round-area').style.display = 'none';
@@ -555,21 +555,49 @@ function renderBoard() {
 
         document.getElementById('submissions-area').innerHTML = createBoardSubmissionsHTML(gameState.state, gameState.submissions);
         
-        const winnerAnnouncement = document.getElementById('winner-announcement');
-        if (gameState.roundWinnerInfo) {
-            winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
-            <div class="card-group">
-                ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
-            </div>`;
-            winnerAnnouncement.style.display = 'block';
-        } else {
-            winnerAnnouncement.style.display = 'none';
-        }
+       
+const winnerAnnouncement = document.getElementById('winner-announcement');
+if (gameState.roundWinnerInfo) {
+    winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
+    <div class="card-group">
+        ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
+    </div>`;
+    // Add the 'visible' class to trigger the animation
+    winnerAnnouncement.classList.add('visible');
+} else {
+    // Remove the 'visible' class to hide it
+    winnerAnnouncement.classList.remove('visible');
+}
+// ...
     }
 
     renderVoteDisplay();
 }
+/**
+ * Dynamically adjusts the scoreboard font size to prevent overflow.
+ */
+function adjustScoreboardFontSize() {
+    const scoreboard = document.getElementById('scoreboard');
+    if (!scoreboard) return;
 
+    // Reset font size to a default large size first
+    const defaultFontSize = 1.5; // in rem
+    scoreboard.querySelectorAll('.score-item').forEach(item => {
+        item.style.fontSize = `${defaultFontSize}rem`;
+    });
+
+    let currentFontSize = defaultFontSize;
+    let safetyBreak = 0; // Prevents an infinite loop
+
+    // Shrink the font size until the content fits within the container width
+    while (scoreboard.scrollWidth > scoreboard.clientWidth && safetyBreak < 20) {
+        currentFontSize -= 0.1; // Decrease by 0.1rem
+        scoreboard.querySelectorAll('.score-item').forEach(item => {
+            item.style.fontSize = `${currentFontSize}rem`;
+        });
+        safetyBreak++;
+    }
+}
 function renderPlayer() {
     if (gameState.state === 'finished') {
         return; // Don't re-render if the game is over
