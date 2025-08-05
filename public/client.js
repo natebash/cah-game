@@ -278,20 +278,24 @@ function setupPlayerPage() {
             socket.emit('kickPlayer', { code: gameState.code, playerIdToKick });
         }
 
-        // Player Hand Card Selection
-        const cardButton = e.target.closest('#my-hand .card.white');
-        if (cardButton && !cardButton.disabled) {
-            const cardText = cardButton.dataset.cardText;
-            if (cardText === '___BLANK_CARD___') {
-                const pickCount = gameState.currentBlackCard.pick;
-                if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
-                    return;
-                }
-                document.getElementById('blank-card-modal').style.display = 'flex';
-            } else {
-                handleCardSelect(cardText);
-            }
+      // Player Hand Card Selection
+const cardButton = e.target.closest('#my-hand .card.white');
+if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
+    // Look up the player and the card index
+    const me = gameState.players.find(p => p.id === socket.id);
+    const cardIndex = parseInt(cardButton.dataset.cardIndex, 10);
+    const cardText = me.hand[cardIndex];
+
+    if (cardText === '___BLANK_CARD___') {
+        const pickCount = gameState.currentBlackCard.pick;
+        if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
+            return;
         }
+        document.getElementById('blank-card-modal').style.display = 'flex';
+    } else {
+        handleCardSelect(cardText);
+    }
+}
 
        // Czar Card Selection
        const cardGroup = e.target.closest('#cards-to-judge .card-group');
@@ -463,7 +467,8 @@ function createLobbyPlayerListHTML(players, isHost, myId) {
 
 /** Creates the HTML for the player's hand of cards. */
 function createPlayerHandHTML(me, isCzar, submitted) {
-    return me.hand.map(cardText => {
+    // We now include the 'index' of the card
+    return me.hand.map((cardText, index) => {
         const isDisabled = isCzar || submitted || gameState.state !== 'playing';
         const isSelected = selectedCards.includes(cardText);
         const isBlank = cardText === '___BLANK_CARD___';
@@ -474,10 +479,10 @@ function createPlayerHandHTML(me, isCzar, submitted) {
 
         const content = isBlank ? `<p>Write your own card!</p>` : `<p>${cardText}</p>`;
 
-        return `<button class="${classes}" data-card-text="${cardText}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
+        // CHANGE: Use the safe 'data-card-index' instead of 'data-card-text'
+        return `<button class="${classes}" data-card-index="${index}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
     }).join('');
 }
-
 /** Creates the HTML for the submissions the Czar needs to judge. */
 function createCzarChoicesHTML(submissions, czarSelection) {
     let html = '';
