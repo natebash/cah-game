@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   pingInterval: 25000, // How often to send a ping in ms (default: 25000)
-  pingTimeout: 20000,  // How long to wait for a pong response in ms (default: 20000)
+  pingTimeout: 200000,  // How long to wait for a pong response in ms (default: 20000)
 });
 app.use(express.static('public'));
 
