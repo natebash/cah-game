@@ -551,6 +551,8 @@ function renderBoard() {
         return; // Don't re-render if the game is over
     }
 
+    document.getElementById('game-over-area').style.display = 'none';
+
     document.getElementById('game-code-display').textContent = gameState.code;
     document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
     adjustScoreboardFontSize();
