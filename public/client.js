@@ -310,7 +310,10 @@ function setupPlayerPage() {
         const blankCardSubmitBtn = document.getElementById('blank-card-submit-btn');
         const textarea = document.getElementById('blank-card-input');
         const charCount = document.getElementById('char-count');
-
+         blankCardCancelBtn.addEventListener('click', () => {
+            blankCardModal.style.display = 'none';
+            textarea.value = ''; // Clear text
+        });
         blankCardSubmitBtn.addEventListener('click', () => {
             const cardText = textarea.value.trim();
             if (cardText.length > 0 && cardText.length <= 150) {
