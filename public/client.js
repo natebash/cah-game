@@ -355,11 +355,7 @@ socket.on('gameCreated', (data) => {
 });
 
 socket.on('joinSuccess', (data) => {
-    // If we are the host, we don't need a player token.
-    // The hostToken is already stored and is the source of truth.
-    if (!sessionStorage.getItem('hostToken')) {
-        sessionStorage.setItem('playerToken', data.token);
-    }
+    sessionStorage.setItem('playerToken', data.token);
 });
 
 socket.on('gameUpdate', (game) => {
