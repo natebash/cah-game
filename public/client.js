@@ -52,23 +52,30 @@ function joinGameFromURL() {
     if (page.includes('board.html')) {
         socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
     } else if (page.includes('player.html')) {
+        // Get saved data from the browser session
         let playerName = sessionStorage.getItem('playerName');
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
+        // This is the key change: Only prompt for a name if it's truly missing.
+        // This is a fallback for direct navigation or errors, not the main flow.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
+                // If the user cancels the prompt, stop the process.
                 if (playerName === null) {
-                    alert("You must enter a name to join. Redirecting to homepage.");
+                    alert("A name is required to join. Redirecting to homepage.");
                     window.location.href = '/';
                     return;
                 }
             }
+            // If we had to prompt, save the new name and clear any old tokens.
             sessionStorage.setItem('playerName', playerName.trim());
-            sessionStorage.removeItem('hostToken');
             sessionStorage.removeItem('playerToken');
+            sessionStorage.removeItem('hostToken');
         }
+        
+        // Now, we can safely attempt to join the game with a valid name.
         socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
 }
@@ -314,7 +321,8 @@ if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
         const blankCardSubmitBtn = document.getElementById('blank-card-submit-btn');
         const textarea = document.getElementById('blank-card-input');
         const charCount = document.getElementById('char-count');
-         blankCardCancelBtn.addEventListener('click', () => {
+        const blankCardCancelBtn = document.getElementById('blank-card-cancel-btn');
+        blankCardCancelBtn.addEventListener('click', () => {
             blankCardModal.style.display = 'none';
             textarea.value = ''; // Clear text
         });
@@ -425,6 +433,11 @@ socket.on('errorMsg', (msg) => {
     // Critical errors that should send the user home
     const criticalErrors = ['Game not found.', 'That name is already taken.'];
     if (criticalErrors.includes(msg)) {
+        // Clear the stored data that caused the error
+        sessionStorage.removeItem('playerName');
+        sessionStorage.removeItem('playerToken');
+        sessionStorage.removeItem('hostToken');
+
         alert(msg + "\n\nYou will be redirected to the homepage.");
         window.location.href = '/';
         return;
