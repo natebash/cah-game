@@ -531,13 +531,19 @@ function createBoardScoreboardHTML(players, currentCzarId) {
 /** Creates the HTML for the submissions area on the board view. */
 function createBoardSubmissionsHTML(state, submissions) {
     if (state === 'judging') {
-        let html = '';
-        for (const playerId in submissions) {
-            html += `<div class="card-group">
-                ${submissions[playerId].map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}
-            </div>`;
+        // Convert submissions object to an array of card arrays
+        const submissionArray = Object.values(submissions);
+
+        // Shuffle the array to randomize display order for anonymity
+        for (let i = submissionArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [submissionArray[i], submissionArray[j]] = [submissionArray[j], submissionArray[i]];
         }
-        return html;
+
+        // Map the shuffled array to HTML
+        return submissionArray.map(submission =>
+            `<div class="card-group">${submission.map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}</div>`
+        ).join('');
     } else {
         const submissionCount = Object.keys(submissions).length;
         return '<div class="card white back"></div>'.repeat(submissionCount);
@@ -555,7 +561,6 @@ function renderBoard() {
 
     document.getElementById('game-code-display').textContent = gameState.code;
     document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
-    adjustScoreboardFontSize();
     if (gameState.state === 'waiting') {
         document.getElementById('waiting-area').style.display = 'block';
         document.getElementById('round-area').style.display = 'none';
@@ -587,31 +592,6 @@ if (gameState.roundWinnerInfo) {
     }
 
     renderVoteDisplay();
-}
-/**
- * Dynamically adjusts the scoreboard font size to prevent overflow.
- */
-function adjustScoreboardFontSize() {
-    const scoreboard = document.getElementById('scoreboard');
-    if (!scoreboard) return;
-
-    // Reset font size to a default large size first
-    const defaultFontSize = 1.5; // in rem
-    scoreboard.querySelectorAll('.score-item').forEach(item => {
-        item.style.fontSize = `${defaultFontSize}rem`;
-    });
-
-    let currentFontSize = defaultFontSize;
-    let safetyBreak = 0; // Prevents an infinite loop
-
-    // Shrink the font size until the content fits within the container width
-    while (scoreboard.scrollWidth > scoreboard.clientWidth && safetyBreak < 20) {
-        currentFontSize -= 0.1; // Decrease by 0.1rem
-        scoreboard.querySelectorAll('.score-item').forEach(item => {
-            item.style.fontSize = `${currentFontSize}rem`;
-        });
-        safetyBreak++;
-    }
 }
 function renderPlayer() {
     if (gameState.state === 'finished') {

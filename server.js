@@ -300,27 +300,35 @@ io.on('connection', (socket) => {
         const sanitizedText = cardText.trim();
 
         // 2. Save to cards.json
+        // Note: This file-based approach can have race conditions if multiple users submit
+        // a blank card simultaneously. For a larger application, a database or a more
+        // robust file-locking mechanism would be recommended.
         const cardsPath = path.join(__dirname, 'public', 'cards.json');
-        try {
-            const fileContent = fs.readFileSync(cardsPath, 'utf8');
+        fs.readFile(cardsPath, 'utf8', (err, fileContent) => {
+            if (err) {
+                console.error("Error reading cards.json:", err);
+                return;
+            }
+
             const data = JSON.parse(fileContent);
             let customPack = data.find(p => p.name === "User-Submitted Pack");
 
-            // Ensure customPack and its white array exist before trying to modify it
-            if (customPack && Array.isArray(customPack.white)) {
-                // Avoid duplicates
-                if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
-                    customPack.white.push({ text: sanitizedText, pack: 999 }); // Using a high pack number for custom
-                    fs.writeFileSync(cardsPath, JSON.stringify(data, null, 4)); // Pretty print with 4 spaces
-                    // 3. Update in-memory cards for this server instance
-                    allWhiteCards.push(sanitizedText);
-                }
-            } else {
-                console.error("'User-Submitted Pack' with a 'white' array not found in cards.json. Card not saved.");
+            // If the custom pack doesn't exist, create it.
+            if (!customPack) {
+                customPack = { name: "User-Submitted Pack", white: [], black: [], official: false };
+                data.push(customPack);
             }
-        } catch (err) {
-            console.error("Error writing to cards.json:", err);
-        }
+
+            // Avoid duplicates
+            if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
+                customPack.white.push({ text: sanitizedText, pack: 999 }); // Using a high pack number for custom
+                fs.writeFile(cardsPath, JSON.stringify(data, null, 4), (writeErr) => {
+                    if (writeErr) console.error("Error writing to cards.json:", writeErr);
+                });
+                // 3. Update in-memory cards for this server instance
+                allWhiteCards.push(sanitizedText);
+            }
+        });
 
         // 4. Handle submission (similar to 'submitCard')
         game.submissions[socket.id] = [sanitizedText]; // Treat as a single card submission
