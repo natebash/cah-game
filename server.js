@@ -83,7 +83,7 @@ function startNewRound(gameCode) {
     if (activePlayers.length < 2) { // Need at least 2 players (1 czar, 1 player) for a round
         game.state = 'waiting';
         game.currentCzar = null; // No czar if we're waiting
-        io.to(gameCode).emit('gameUpdate', game);
+        io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
         return;
     }
 
@@ -110,7 +110,7 @@ function startNewRound(gameCode) {
         }
     });
 
-    io.to(gameCode).emit('gameUpdate', game);
+    io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
 }
 
 function getSerializableGameState(game) {
@@ -324,7 +324,7 @@ io.on('connection', (socket) => {
         if (Object.keys(game.submissions).length >= requiredSubmissions) {
             game.state = 'judging';
         }
-        io.to(gameCode).emit('gameUpdate', game);
+        io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
     }
 
     socket.on('czarChoose', (data) => {
@@ -406,8 +406,7 @@ io.on('connection', (socket) => {
                     if (playerIndex !== -1 && game.players[playerIndex].disconnected) {
                         console.log(`Permanently removing ${player.name} from game ${code} after timeout.`);
                         game.players.splice(playerIndex, 1);
-                        io.to(code).emit('gameUpdate', game);
-                    }
+io.to(code).emit('gameUpdate', getSerializableGameState(game));                    }
                 }, 1200000); // 2 minutes
 
                 const remainingActivePlayers = getActivePlayers(game);
@@ -426,8 +425,7 @@ io.on('connection', (socket) => {
                 if (player.id === game.currentCzar && game.state !== 'waiting') {
                     startNewRound(code);
                 } else {
-                    io.to(code).emit('gameUpdate', game);
-                }
+io.to(code).emit('gameUpdate', getSerializableGameState(game));                }
                 break;
             }
         }
