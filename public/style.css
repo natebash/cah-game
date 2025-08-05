@@ -151,6 +151,7 @@ button:hover {
 .card-group { display: flex; gap: 5px; }
 #submissions-area .card-group .card.white { width: 220px; height: 300px; }
 
+/* --- Winner Banner Animation --- */
 .winner-banner {
     background-color: #f9a825;
     color: #1a1a1a;
@@ -164,16 +165,16 @@ button:hover {
     width: 90%;
     max-width: 500px;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: translate(-50%, -50%) scale(0.9) translateY(20px);
     pointer-events: none;
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    transition: opacity 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     padding: 20px;
     text-align: center;
 }
 
 .winner-banner.visible {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateY(0);
     pointer-events: auto;
 }
 
@@ -260,7 +261,7 @@ button:hover {
 #my-hand .card.white,
 #cards-to-judge .card-group {
     margin-bottom: 10px;
-    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out, border-width 0.3s ease-out;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out, border-width 0.3s ease-out, transform 0.2s ease-in-out;
 }
 
 #my-hand .card.white, #cards-to-judge .card.white {
@@ -334,6 +335,7 @@ button:hover {
     border: 3px solid #f9a825; /* Gold border */
     border-radius: 15px;
     box-shadow: 0 8px 25px rgba(249, 168, 37, 0.4);
+    transform: scale(1.05);
 }
 
 #czar-confirm-container {
@@ -611,10 +613,9 @@ button:hover {
 
         /* New styles for side-by-side layout */
         #round-area .round-content-wrapper {
-            display: flex;
-            flex-direction: row;
+            display: grid;
+            grid-template-columns: 300px 1fr; /* Fixed width for black card, flexible for submissions */
             align-items: flex-start;
-            justify-content: center;
             gap: 2rem;
             margin-top: 1rem;
         }

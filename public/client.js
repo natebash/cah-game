@@ -697,7 +697,6 @@ function renderPlayer() {
                 myHandDiv.classList.remove('selection-complete');
             }
 
-            const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
             if (submitted) {
                 playerStatus.textContent = 'Your submission is in. Waiting for others.';
             } else if (gameState.state === 'playing') {
@@ -778,21 +777,11 @@ function renderWinnerBanner(elementId) {
     if (!winnerAnnouncement) return;
 
     if (gameState.roundWinnerInfo) {
-        // If the banner is already visible, do nothing to prevent re-animating.
-        if (winnerAnnouncement.classList.contains('visible')) {
-            return;
-        }
-
         winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
         <div class="card-group">
             ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
         </div>`;
-
-        // Use a timeout to allow the browser to render the new content
-        // before adding the class that triggers the transition. This forces a reflow.
-        setTimeout(() => {
-            winnerAnnouncement.classList.add('visible');
-        }, 10); // A small delay is sufficient.
+        winnerAnnouncement.classList.add('visible');
     } else {
         winnerAnnouncement.classList.remove('visible');
     }

@@ -29,7 +29,12 @@ function loadCards() {
             allWhiteCards = allWhiteCards.concat(set.white.map(card => card.text));
         }
         if (set.black) {
-            allBlackCards = allBlackCards.concat(set.black);
+            // Ensure the 'pick' value is an integer.
+            const blackCards = set.black.map(card => ({
+                ...card,
+                pick: parseInt(card.pick, 10) || 1 // Default to 1 if missing or invalid
+            }));
+            allBlackCards = allBlackCards.concat(blackCards);
         }
     });
 
@@ -58,6 +63,16 @@ function shuffle(array) {
 
 function getActivePlayers(game) {
     return game.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
+}
+
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
 }
 
 
@@ -274,7 +289,7 @@ io.on('connection', (socket) => {
         if (typeof cardText !== 'string' || cardText.length === 0 || cardText.length > 150) {
             return; // Or send an error back to the user
         }
-        const sanitizedText = cardText.trim();
+        const sanitizedText = escapeHtml(cardText.trim());
 
         // 2. Save to cards.json
         // Note: This file-based approach can have race conditions if multiple users submit
@@ -318,6 +333,11 @@ io.on('connection', (socket) => {
     socket.on('startGame', (gameCode) => {
         const game = games[gameCode];
         if (game && socket.id === game.hostId) {
+            // Add server-side validation before starting
+            const activePlayers = getActivePlayers(game);
+            if (activePlayers.length < 2) {
+                return socket.emit('errorMsg', 'Cannot start game. At least 2 active players are required.');
+            }
             firstRound(gameCode);
         }
     });
