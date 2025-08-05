@@ -406,8 +406,9 @@ io.on('connection', (socket) => {
                     if (playerIndex !== -1 && game.players[playerIndex].disconnected) {
                         console.log(`Permanently removing ${player.name} from game ${code} after timeout.`);
                         game.players.splice(playerIndex, 1);
-io.to(code).emit('gameUpdate', getSerializableGameState(game));                    }
-                }, 1200000); // 2 minutes
+                        io.to(code).emit('gameUpdate', getSerializableGameState(game));
+                    }
+                }, 120000); // 2 minutes
 
                 const remainingActivePlayers = getActivePlayers(game);
 

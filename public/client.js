@@ -52,34 +52,35 @@ function joinGameFromURL() {
     if (page.includes('board.html')) {
         socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
     } else if (page.includes('player.html')) {
-       // This is the new, corrected code
-let playerName = sessionStorage.getItem('playerName');
-const playerToken = sessionStorage.getItem('playerToken');
-const hostToken = sessionStorage.getItem('hostToken');
+        let playerName = sessionStorage.getItem('playerName');
+        const playerToken = sessionStorage.getItem('playerToken');
+        const hostToken = sessionStorage.getItem('hostToken');
 
-// If the player has no token, they are a new player.
-// We should ignore any leftover name from a previous session and force a prompt.
-if (!playerToken && !hostToken) {
-    playerName = null;
-}
-
-if (!playerName) {
-    while (!playerName || playerName.trim() === "") {
-        playerName = prompt("Please enter your name to join the game:", "");
-        if (playerName === null) {
-            alert("You must enter a name to join. Redirecting to homepage.");
-            window.location.href = '/';
-            return;
+        // If the player has no token, they are a new player.
+        // We should ignore any leftover name from a previous session and force a prompt.
+        if (!playerToken && !hostToken) {
+            playerName = null;
         }
+
+        if (!playerName) {
+            while (!playerName || playerName.trim() === "") {
+                playerName = prompt("Please enter your name to join the game:", "");
+                if (playerName === null) {
+                    alert("You must enter a name to join. Redirecting to homepage.");
+                    window.location.href = '/';
+                    return;
+                }
+            }
+            // Since we prompted for a name, this is a fresh join.
+            // Store the new name and clear any old tokens.
+            sessionStorage.setItem('playerName', playerName.trim());
+            sessionStorage.removeItem('playerToken');
+            sessionStorage.removeItem('hostToken');
+        }
+
+        // Now, we can safely attempt to join the game.
+        socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
-    // Since we prompted for a name, this is a fresh join.
-    // Store the new name and clear any old tokens.
-    sessionStorage.setItem('playerName', playerName.trim());
-    sessionStorage.removeItem('playerToken');
-    sessionStorage.removeItem('hostToken');
-}
-// Now, we can safely attempt to join the game.
-socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });}
 }
 
 function setupIndexPage() {
@@ -323,7 +324,8 @@ if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
         const blankCardSubmitBtn = document.getElementById('blank-card-submit-btn');
         const textarea = document.getElementById('blank-card-input');
         const charCount = document.getElementById('char-count');
-         blankCardCancelBtn.addEventListener('click', () => {
+        const blankCardCancelBtn = document.getElementById('blank-card-cancel-btn');
+        blankCardCancelBtn.addEventListener('click', () => {
             blankCardModal.style.display = 'none';
             textarea.value = ''; // Clear text
         });
@@ -434,6 +436,11 @@ socket.on('errorMsg', (msg) => {
     // Critical errors that should send the user home
     const criticalErrors = ['Game not found.', 'That name is already taken.'];
     if (criticalErrors.includes(msg)) {
+        // Clear the stored data that caused the error
+        sessionStorage.removeItem('playerName');
+        sessionStorage.removeItem('playerToken');
+        sessionStorage.removeItem('hostToken');
+
         alert(msg + "\n\nYou will be redirected to the homepage.");
         window.location.href = '/';
         return;
