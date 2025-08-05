@@ -666,3 +666,16 @@ button:hover {
 }
 
 .char-count { font-size: 0.8rem; color: #aaa; text-align: right; margin-bottom: 15px; }
+
+/* FIX: Add this rule to remove space after cards are hidden on larger screens */
+@media (min-width: 850px) {
+    #my-hand.selection-complete .card.white:not(.selected) {
+        max-height: 0;
+        opacity: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: 0;
+        border-width: 0;
+        overflow: hidden;
+    }
+}
