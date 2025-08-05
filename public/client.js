@@ -52,35 +52,30 @@ function joinGameFromURL() {
     if (page.includes('board.html')) {
         socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
     } else if (page.includes('player.html')) {
+        // Get saved data from the browser session
         let playerName = sessionStorage.getItem('playerName');
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
-        // A token means the player is returning. We can trust the stored name.
-        const isReturningPlayer = playerToken || hostToken;
-
-        // If there is no name, this player MUST be new (e.g. from QR code).
-        // We must prompt them for a name.
+        // This is the key change: Only prompt for a name if it's truly missing.
+        // This is a fallback for direct navigation or errors, not the main flow.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
-                if (playerName === null) { // User cancelled the prompt
-                    alert("You must enter a name to join. Redirecting to homepage.");
+                // If the user cancels the prompt, stop the process.
+                if (playerName === null) {
+                    alert("A name is required to join. Redirecting to homepage.");
                     window.location.href = '/';
                     return;
                 }
             }
-            // Store the newly prompted name and clear any stray tokens from other sessions.
+            // If we had to prompt, save the new name and clear any old tokens.
             sessionStorage.setItem('playerName', playerName.trim());
             sessionStorage.removeItem('playerToken');
             sessionStorage.removeItem('hostToken');
         }
-
-        // Now we have a name for sure. Emit to join.
-        // This single emit handles all cases:
-        // 1. New player from index: has name, no token.
-        // 2. New player from QR: has newly prompted name, no token.
-        // 3. Returning player: has name and token.
+        
+        // Now, we can safely attempt to join the game with a valid name.
         socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
 }
