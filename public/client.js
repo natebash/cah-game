@@ -56,8 +56,11 @@ function joinGameFromURL() {
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
-        // If we don't have a name, we MUST prompt for one. This is the case for QR code users
-        // or if a user somehow lands here without going through the index page.
+        // A token means the player is returning. We can trust the stored name.
+        const isReturningPlayer = playerToken || hostToken;
+
+        // If there is no name, this player MUST be new (e.g. from QR code).
+        // We must prompt them for a name.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
@@ -67,19 +70,18 @@ function joinGameFromURL() {
                     return;
                 }
             }
-            // This is a fresh join. Store the new name and clear any old tokens.
+            // Store the newly prompted name and clear any stray tokens from other sessions.
             sessionStorage.setItem('playerName', playerName.trim());
             sessionStorage.removeItem('playerToken');
             sessionStorage.removeItem('hostToken');
-            
-            // Proceed to join with the newly acquired name.
-            socket.emit('joinGame', { code: gameCode, name: playerName, token: null });
-
-        } else {
-            // If we DO have a playerName, we trust it and send it along with any tokens we have.
-            // This covers both returning players (who have a token) and new players from the index page (who don't).
-            socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
         }
+
+        // Now we have a name for sure. Emit to join.
+        // This single emit handles all cases:
+        // 1. New player from index: has name, no token.
+        // 2. New player from QR: has newly prompted name, no token.
+        // 3. Returning player: has name and token.
+        socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
 }
 
