@@ -293,11 +293,15 @@ function setupPlayerPage() {
             }
         }
 
-        // Czar Card Selection
-        const cardGroup = e.target.closest('#cards-to-judge .card-group');
-        if (cardGroup) {
-            handleCzarSelect(JSON.parse(cardGroup.dataset.submission));
-        }
+       // Czar Card Selection
+       const cardGroup = e.target.closest('#cards-to-judge .card-group');
+       if (cardGroup && cardGroup.dataset.playerId) {
+       const selectedPlayerId = cardGroup.dataset.playerId;
+       const submission = gameState.submissions[selectedPlayerId];
+       if (submission) {
+        handleCzarSelect(submission);
+       }
+  }
     });
 
     // --- Blank Card Modal Logic ---
@@ -479,7 +483,8 @@ function createCzarChoicesHTML(submissions, czarSelection) {
         const isSelected = czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission);
         const selectedClass = isSelected ? ' czar-selected' : '';
 
-        html += `<div class="card-group interactive${selectedClass}" data-submission='${JSON.stringify(submission)}'>
+        // CHANGE: Store the playerId instead of the full submission object.
+        html += `<div class="card-group interactive${selectedClass}" data-player-id="${playerId}">
             ${submission.map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}
         </div>`;
     }
