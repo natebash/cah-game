@@ -561,7 +561,7 @@ function renderBoard() {
     }
 
     document.getElementById('game-over-area').style.display = 'none';
-
+    document.getElementById('winner-announcement').style.display = 'none';
     document.getElementById('game-code-display').textContent = gameState.code;
     document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
     if (gameState.state === 'waiting') {
@@ -586,7 +586,7 @@ function renderPlayer() {
     if (gameState.state === 'finished') {
         return; // Don't re-render if the game is over
     }
-
+    document.getElementById('winner-announcement-player').style.display = 'none';
     const me = gameState.players.find(p => p.id === socket.id);
     if (!me) return;
 
