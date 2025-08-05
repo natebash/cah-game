@@ -150,7 +150,28 @@ button:hover {
 #submissions-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
 .card-group { display: flex; gap: 5px; }
 #submissions-area .card-group .card.white { width: 220px; height: 300px; }
-.winner-banner { margin-top: 30px; padding: 20px; background-color: #f9a825; color: #1a1a1a; border-radius: 10px; font-size: 1.5rem; font-weight: bold; }
+.winner-banner {
+    background-color: #f9a825;
+    color: #1a1a1a;
+    border-radius: 10px;
+    font-size: 1.2rem; /* Adjusted for player view */
+    font-weight: bold;
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    max-height: 0;
+    padding: 0 20px;
+    margin: 0 auto;
+    overflow: hidden;
+    transition: all 0.4s ease-in-out;
+}
+.winner-banner.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 300px; /* Ample height for content */
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
 
 /* --- Submission Reveal Animation --- */
 @keyframes fadeInSlideUp {

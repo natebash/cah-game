@@ -574,21 +574,7 @@ function renderBoard() {
         }
 
         document.getElementById('submissions-area').innerHTML = createBoardSubmissionsHTML(gameState.state, gameState.submissions);
-        
-       
-const winnerAnnouncement = document.getElementById('winner-announcement');
-if (gameState.roundWinnerInfo) {
-    winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
-    <div class="card-group">
-        ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
-    </div>`;
-    // Add the 'visible' class to trigger the animation
-    winnerAnnouncement.classList.add('visible');
-} else {
-    // Remove the 'visible' class to hide it
-    winnerAnnouncement.classList.remove('visible');
-}
-// ...
+        renderWinnerBanner('winner-announcement');
     }
 
     renderVoteDisplay();
@@ -674,6 +660,8 @@ function renderPlayer() {
             blackCardTextPlayer.innerHTML = gameState.currentBlackCard.text.replace(/_/g, '______');
         }
         
+        renderWinnerBanner('winner-announcement-player');
+
         const isCzar = gameState.currentCzar === socket.id;
         const submitted = !!gameState.submissions[socket.id];
         
@@ -771,5 +759,21 @@ function renderVoteDisplay() {
         });
     } else {
         voteArea.style.display = 'none';
+    }
+}
+
+/** Renders the winner announcement banner on both board and player views. */
+function renderWinnerBanner(elementId) {
+    const winnerAnnouncement = document.getElementById(elementId);
+    if (!winnerAnnouncement) return;
+
+    if (gameState.roundWinnerInfo) {
+        winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
+        <div class="card-group">
+            ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
+        </div>`;
+        winnerAnnouncement.classList.add('visible');
+    } else {
+        winnerAnnouncement.classList.remove('visible');
     }
 }
