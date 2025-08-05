@@ -56,30 +56,30 @@ function joinGameFromURL() {
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
-        // If the player has no token, they are a new player.
-        // We should ignore any leftover name from a previous session and force a prompt.
-        if (!playerToken && !hostToken) {
-            playerName = null;
-        }
-
+        // If we don't have a name, we MUST prompt for one. This is the case for QR code users
+        // or if a user somehow lands here without going through the index page.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
-                if (playerName === null) {
+                if (playerName === null) { // User cancelled the prompt
                     alert("You must enter a name to join. Redirecting to homepage.");
                     window.location.href = '/';
                     return;
                 }
             }
-            // Since we prompted for a name, this is a fresh join.
-            // Store the new name and clear any old tokens.
+            // This is a fresh join. Store the new name and clear any old tokens.
             sessionStorage.setItem('playerName', playerName.trim());
             sessionStorage.removeItem('playerToken');
             sessionStorage.removeItem('hostToken');
-        }
+            
+            // Proceed to join with the newly acquired name.
+            socket.emit('joinGame', { code: gameCode, name: playerName, token: null });
 
-        // Now, we can safely attempt to join the game.
-        socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
+        } else {
+            // If we DO have a playerName, we trust it and send it along with any tokens we have.
+            // This covers both returning players (who have a token) and new players from the index page (who don't).
+            socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
+        }
     }
 }
 
