@@ -60,6 +60,7 @@ function getActivePlayers(game) {
     return game.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
 }
 
+
 function firstRound(gameCode) {
     const game = games[gameCode];
     if (!game) return;
@@ -199,6 +200,7 @@ io.on('connection', (socket) => {
             return socket.emit('errorMsg', 'Game not found.');
         }
 
+
         // Handle player rejoin
         const rejoiningPlayer = game.players.find(p => p.name === data.name && p.disconnected);
         if (rejoiningPlayer && data.token === rejoiningPlayer.token) {
@@ -251,6 +253,12 @@ io.on('connection', (socket) => {
             const playerIndex = game.players.findIndex(p => p.id === data.playerIdToKick);
             if (playerIndex > -1) {
                 const kickedPlayer = game.players.splice(playerIndex, 1)[0];
+                const kickedSocket = io.sockets.sockets.get(kickedPlayer.id);
+                if (kickedSocket) {
+                    // Force the socket to leave the room and disconnect.
+                    kickedSocket.leave(data.code);
+                    kickedSocket.disconnect(true);
+                }
                 io.to(kickedPlayer.id).emit('youWereKicked');
                 io.to(data.code).emit('gameUpdate', getSerializableGameState(game)); // Update everyone else
             }
@@ -272,32 +280,33 @@ io.on('connection', (socket) => {
         // Note: This file-based approach can have race conditions if multiple users submit
         // a blank card simultaneously. For a larger application, a database or a more
         // robust file-locking mechanism would be recommended.
+        // FIX: Switched to synchronous file I/O to prevent race conditions.
         const cardsPath = path.join(__dirname, 'public', 'cards.json');
-        fs.readFile(cardsPath, 'utf8', (err, fileContent) => {
-            if (err) {
-                console.error("Error reading cards.json:", err);
-                return;
-            }
-
+        try {
+            const fileContent = fs.readFileSync(cardsPath, 'utf8');
             const data = JSON.parse(fileContent);
             let customPack = data.find(p => p.name === "User-Submitted Pack");
 
-            // If the custom pack doesn't exist, create it.
             if (!customPack) {
                 customPack = { name: "User-Submitted Pack", white: [], black: [], official: false };
                 data.push(customPack);
             }
 
-            // Avoid duplicates
             if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
-                customPack.white.push({ text: sanitizedText, pack: 999 }); // Using a high pack number for custom
-                fs.writeFile(cardsPath, JSON.stringify(data, null, 4), (writeErr) => {
-                    if (writeErr) console.error("Error writing to cards.json:", writeErr);
-                });
-                // 3. Update in-memory cards for this server instance
-                allWhiteCards.push(sanitizedText);
+                customPack.white.push({ text: sanitizedText, pack: 999 });
+                fs.writeFileSync(cardsPath, JSON.stringify(data, null, 4));
+                
+                // FIX: Add the new card to the in-memory decks for the current session.
+                allWhiteCards.push(sanitizedText); // For future games
+                game.whiteDeck.push(sanitizedText); // For the current game
+                shuffle(game.whiteDeck); // Re-shuffle the deck
             }
-        });
+        } catch (err) {
+            if (err) {
+                console.error("Error reading cards.json:", err);
+                return;
+            }
+        }
 
         // 4. Handle submission (similar to 'submitCard')
         game.submissions[socket.id] = [sanitizedText]; // Treat as a single card submission
@@ -392,49 +401,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        for (const code in games) {
-            const game = games[code];
-            const player = game.players.find(p => p.id === socket.id);
-
-            if (player && player.name !== 'TV_BOARD') {
-                console.log(`Player ${player.name} disconnected from game ${code}`);
-                player.disconnected = true;
-
-                // If a vote is in progress, cancel it
-                if (game.voteToEndState.inProgress) {
-                    io.to(code).emit('voteToEndResult', { passed: false, reason: `${player.name} disconnected.` });
-                    game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
-                }
-
-                // Set a timeout to remove the player permanently if they don't reconnect
-                player.disconnectTimeout = setTimeout(() => {
-                    const playerIndex = game.players.findIndex(p => p.id === player.id);
-                    if (playerIndex !== -1 && game.players[playerIndex].disconnected) {
-                        console.log(`Permanently removing ${player.name} from game ${code} after timeout.`);
-                        game.players.splice(playerIndex, 1);
-                        io.to(code).emit('gameUpdate', getSerializableGameState(game));
-                    }
-                }, 120000); // 2 minutes
-
-                const remainingActivePlayers = getActivePlayers(game);
-
-                if (remainingActivePlayers.length < 2 && game.state !== 'waiting') {
-                    endGame(code, "Not enough players left to continue.");
-                    break; // Exit loop once game is ended
-                }
-
-                if (player.id === game.hostId) {
-                    // If host leaves, assign a new host to the first active player
-                    if (remainingActivePlayers.length > 0) {
-                        game.hostId = remainingActivePlayers[0].id;
-                    }
-                }
-                if (player.id === game.currentCzar && game.state !== 'waiting') {
-                    startNewRound(code);
-                } else {
-io.to(code).emit('gameUpdate', getSerializableGameState(game));                }
-                break;
-            }
+        if (socket.gameCode && games[socket.gameCode]) {
+            handlePlayerDisconnect(socket.gameCode, socket.id);
         }
     });
 });
