@@ -306,7 +306,8 @@ io.on('connection', (socket) => {
                 customPack = { name: "User-Submitted Pack", white: [], black: [], official: false };
                 data.push(customPack);
             }
-
+            
+            // FIX: Check if the card already exists before adding it
             if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
                 customPack.white.push({ text: sanitizedText, pack: 999 });
                 fs.writeFileSync(cardsPath, JSON.stringify(data, null, 4));
@@ -366,6 +367,7 @@ io.on('connection', (socket) => {
         const game = games[data.code];
         if (!game || socket.id !== game.currentCzar || game.state !== 'judging') return;
         
+        // FIX: Find the winning player by matching the submitted cards
         const winningPlayerId = Object.keys(game.submissions).find(
             id => JSON.stringify(game.submissions[id]) === JSON.stringify(data.winningCards)
         );
@@ -413,7 +415,7 @@ io.on('connection', (socket) => {
         } else if (totalVotes === activePlayers.length) {
             // All players have voted, and all votes were 'yes'
             const finalWinner = getActivePlayers(game).reduce((prev, current) => (prev.score > current.score) ? prev : current);
-            endGame(data.code, `The players have unanimously voted to end the game!`, finalWinner);
+            endGame(game.code, `The players have unanimously voted to end the game!`, finalWinner);
             // No need to reset state here, endGame handles it
         }
         // Always update the game state to show vote progress

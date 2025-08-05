@@ -3,7 +3,7 @@ const socket = io({ transports: ['websocket'] });
 
 // --- STATE MANAGEMENT ---
 let gameState = {};
-let selectedCards = [];
+let selectedCardIndices = []; // CHANGE: Store indices, not card text
 let czarSelection = null;
 
 // --- UTILITY FUNCTIONS ---
@@ -237,8 +237,11 @@ function setupPlayerPage() {
     const submitCardsBtn = document.getElementById('submit-cards-btn');
     if (submitCardsBtn) {
         submitCardsBtn.addEventListener('click', () => {
-            if (selectedCards.length > 0) {
-                socket.emit('submitCard', { code: gameState.code, cards: selectedCards });
+            // CHANGE: Send the card text based on the selected indices.
+            const me = gameState.players.find(p => p.id === socket.id);
+            const cardsToSubmit = selectedCardIndices.map(index => me.hand[index]);
+            if (cardsToSubmit.length > 0) {
+                socket.emit('submitCard', { code: gameState.code, cards: cardsToSubmit });
                 submitCardsBtn.parentElement.style.display = 'none';
             }
         });
@@ -300,7 +303,7 @@ if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
         }
         document.getElementById('blank-card-modal').style.display = 'flex';
     } else {
-        handleCardSelect(cardText);
+        handleCardSelect(cardIndex); // CHANGE: Pass index, not text
     }
 }
 
@@ -370,7 +373,7 @@ socket.on('gameUpdate', (game) => {
         const me = gameState.players.find(p => p.id === socket.id);
         const submitted = me && !!gameState.submissions[me.id];
         if(!submitted) {
-            selectedCards = [];
+            selectedCardIndices = []; // CHANGE: Reset selected indices
         }
     }
 
@@ -483,7 +486,7 @@ function createPlayerHandHTML(me, isCzar, submitted) {
     // We now include the 'index' of the card
     return me.hand.map((cardText, index) => {
         const isDisabled = isCzar || submitted || gameState.state !== 'playing';
-        const isSelected = selectedCards.includes(cardText);
+        const isSelected = selectedCardIndices.includes(index); // CHANGE: Check for index
         const isBlank = cardText === '___BLANK_CARD___';
 
         let classes = 'card white';
@@ -691,7 +694,7 @@ function renderPlayer() {
 
             // Add or remove the 'selection-complete' class to trigger card hiding animation
             const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
-            if (selectedCards.length === pickCount) {
+            if (selectedCardIndices.length === pickCount) { // CHANGE: Check length of indices array
                 myHandDiv.classList.add('selection-complete');
             } else {
                 myHandDiv.classList.remove('selection-complete');
@@ -715,21 +718,21 @@ function handleCzarSelect(submission) {
     document.getElementById('cards-to-judge').innerHTML = createCzarChoicesHTML(gameState.submissions, czarSelection);
 }
 
-function handleCardSelect(cardText) {
+function handleCardSelect(cardIndex) { // CHANGE: Use index instead of text
     const pickCount = gameState.currentBlackCard.pick;
-    const index = selectedCards.indexOf(cardText);
-    
-    if (index > -1) {
-        selectedCards.splice(index, 1); // Deselect
+    const indexInSelected = selectedCardIndices.indexOf(cardIndex); // CHANGE: Check for index
+
+    if (indexInSelected > -1) {
+        selectedCardIndices.splice(indexInSelected, 1); // Deselect
     } else {
-        if (selectedCards.length < pickCount) {
-            selectedCards.push(cardText); // Select
+        if (selectedCardIndices.length < pickCount) {
+            selectedCardIndices.push(cardIndex); // Select
         }
     }
     
     // Update submit button visibility
     const submitContainer = document.getElementById('submit-button-container');
-    if (selectedCards.length === pickCount) {
+    if (selectedCardIndices.length === pickCount) { // CHANGE: Check length of indices array
         submitContainer.style.display = 'block';
     } else {
         submitContainer.style.display = 'none';
