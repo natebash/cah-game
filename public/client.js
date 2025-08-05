@@ -52,23 +52,30 @@ function joinGameFromURL() {
     if (page.includes('board.html')) {
         socket.emit('joinGame', { code: gameCode, name: 'TV_BOARD' });
     } else if (page.includes('player.html')) {
+        // Get saved data from the browser session
         let playerName = sessionStorage.getItem('playerName');
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
+        // This is the key change: Only prompt for a name if it's truly missing.
+        // This is a fallback for direct navigation or errors, not the main flow.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
+                // If the user cancels the prompt, stop the process.
                 if (playerName === null) {
-                    alert("You must enter a name to join. Redirecting to homepage.");
+                    alert("A name is required to join. Redirecting to homepage.");
                     window.location.href = '/';
                     return;
                 }
             }
+            // If we had to prompt, save the new name and clear any old tokens.
             sessionStorage.setItem('playerName', playerName.trim());
-            sessionStorage.removeItem('hostToken');
             sessionStorage.removeItem('playerToken');
+            sessionStorage.removeItem('hostToken');
         }
+        
+        // Now, we can safely attempt to join the game with a valid name.
         socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
 }
@@ -278,20 +285,24 @@ function setupPlayerPage() {
             socket.emit('kickPlayer', { code: gameState.code, playerIdToKick });
         }
 
-        // Player Hand Card Selection
-        const cardButton = e.target.closest('#my-hand .card.white');
-        if (cardButton && !cardButton.disabled) {
-            const cardText = cardButton.dataset.cardText;
-            if (cardText === '___BLANK_CARD___') {
-                const pickCount = gameState.currentBlackCard.pick;
-                if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
-                    return;
-                }
-                document.getElementById('blank-card-modal').style.display = 'flex';
-            } else {
-                handleCardSelect(cardText);
-            }
+      // Player Hand Card Selection
+const cardButton = e.target.closest('#my-hand .card.white');
+if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
+    // Look up the player and the card index
+    const me = gameState.players.find(p => p.id === socket.id);
+    const cardIndex = parseInt(cardButton.dataset.cardIndex, 10);
+    const cardText = me.hand[cardIndex];
+
+    if (cardText === '___BLANK_CARD___') {
+        const pickCount = gameState.currentBlackCard.pick;
+        if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
+            return;
         }
+        document.getElementById('blank-card-modal').style.display = 'flex';
+    } else {
+        handleCardSelect(cardText);
+    }
+}
 
        // Czar Card Selection
        const cardGroup = e.target.closest('#cards-to-judge .card-group');
@@ -310,7 +321,11 @@ function setupPlayerPage() {
         const blankCardSubmitBtn = document.getElementById('blank-card-submit-btn');
         const textarea = document.getElementById('blank-card-input');
         const charCount = document.getElementById('char-count');
-
+        const blankCardCancelBtn = document.getElementById('blank-card-cancel-btn');
+        blankCardCancelBtn.addEventListener('click', () => {
+            blankCardModal.style.display = 'none';
+            textarea.value = ''; // Clear text
+        });
         blankCardSubmitBtn.addEventListener('click', () => {
             const cardText = textarea.value.trim();
             if (cardText.length > 0 && cardText.length <= 150) {
@@ -418,6 +433,11 @@ socket.on('errorMsg', (msg) => {
     // Critical errors that should send the user home
     const criticalErrors = ['Game not found.', 'That name is already taken.'];
     if (criticalErrors.includes(msg)) {
+        // Clear the stored data that caused the error
+        sessionStorage.removeItem('playerName');
+        sessionStorage.removeItem('playerToken');
+        sessionStorage.removeItem('hostToken');
+
         alert(msg + "\n\nYou will be redirected to the homepage.");
         window.location.href = '/';
         return;
@@ -460,7 +480,8 @@ function createLobbyPlayerListHTML(players, isHost, myId) {
 
 /** Creates the HTML for the player's hand of cards. */
 function createPlayerHandHTML(me, isCzar, submitted) {
-    return me.hand.map(cardText => {
+    // We now include the 'index' of the card
+    return me.hand.map((cardText, index) => {
         const isDisabled = isCzar || submitted || gameState.state !== 'playing';
         const isSelected = selectedCards.includes(cardText);
         const isBlank = cardText === '___BLANK_CARD___';
@@ -471,10 +492,10 @@ function createPlayerHandHTML(me, isCzar, submitted) {
 
         const content = isBlank ? `<p>Write your own card!</p>` : `<p>${cardText}</p>`;
 
-        return `<button class="${classes}" data-card-text="${cardText}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
+        // CHANGE: Use the safe 'data-card-index' instead of 'data-card-text'
+        return `<button class="${classes}" data-card-index="${index}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
     }).join('');
 }
-
 /** Creates the HTML for the submissions the Czar needs to judge. */
 function createCzarChoicesHTML(submissions, czarSelection) {
     let html = '';
@@ -532,7 +553,7 @@ function renderBoard() {
 
     document.getElementById('game-code-display').textContent = gameState.code;
     document.getElementById('scoreboard').innerHTML = createBoardScoreboardHTML(gameState.players, gameState.currentCzar);
-
+    adjustScoreboardFontSize();
     if (gameState.state === 'waiting') {
         document.getElementById('waiting-area').style.display = 'block';
         document.getElementById('round-area').style.display = 'none';
@@ -547,21 +568,49 @@ function renderBoard() {
 
         document.getElementById('submissions-area').innerHTML = createBoardSubmissionsHTML(gameState.state, gameState.submissions);
         
-        const winnerAnnouncement = document.getElementById('winner-announcement');
-        if (gameState.roundWinnerInfo) {
-            winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
-            <div class="card-group">
-                ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
-            </div>`;
-            winnerAnnouncement.style.display = 'block';
-        } else {
-            winnerAnnouncement.style.display = 'none';
-        }
+       
+const winnerAnnouncement = document.getElementById('winner-announcement');
+if (gameState.roundWinnerInfo) {
+    winnerAnnouncement.innerHTML = `<p><strong>${gameState.roundWinnerInfo.name}</strong> won with:</p>
+    <div class="card-group">
+        ${gameState.roundWinnerInfo.cards.map(c => `<div class="card white"><p>${c}</p></div>`).join('')}
+    </div>`;
+    // Add the 'visible' class to trigger the animation
+    winnerAnnouncement.classList.add('visible');
+} else {
+    // Remove the 'visible' class to hide it
+    winnerAnnouncement.classList.remove('visible');
+}
+// ...
     }
 
     renderVoteDisplay();
 }
+/**
+ * Dynamically adjusts the scoreboard font size to prevent overflow.
+ */
+function adjustScoreboardFontSize() {
+    const scoreboard = document.getElementById('scoreboard');
+    if (!scoreboard) return;
 
+    // Reset font size to a default large size first
+    const defaultFontSize = 1.5; // in rem
+    scoreboard.querySelectorAll('.score-item').forEach(item => {
+        item.style.fontSize = `${defaultFontSize}rem`;
+    });
+
+    let currentFontSize = defaultFontSize;
+    let safetyBreak = 0; // Prevents an infinite loop
+
+    // Shrink the font size until the content fits within the container width
+    while (scoreboard.scrollWidth > scoreboard.clientWidth && safetyBreak < 20) {
+        currentFontSize -= 0.1; // Decrease by 0.1rem
+        scoreboard.querySelectorAll('.score-item').forEach(item => {
+            item.style.fontSize = `${currentFontSize}rem`;
+        });
+        safetyBreak++;
+    }
+}
 function renderPlayer() {
     if (gameState.state === 'finished') {
         return; // Don't re-render if the game is over
