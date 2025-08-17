@@ -178,17 +178,26 @@ button:hover {
     pointer-events: auto;
 }
 
-.winner-banner .card-group {
-    justify-content: center;
+.winner-banner > p {
+    font-size: 1.2rem;
+    margin: 0 0 10px 0;
+}
+
+.winner-banner .card.black {
+    width: 100%; /* Use full width of banner */
+    height: auto; /* Let height be determined by content */
+    min-height: 100px;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    justify-content: center; /* Center text vertically */
+    text-align: center; /* Center text horizontally */
     margin-top: 10px;
 }
 
-.winner-banner .card {
-    width: 120px;
-    height: 160px;
-    font-size: 0.8rem;
-    padding: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+.winner-banner .card.black p {
+    margin: 0;
 }
 
 /* --- Submission Reveal Animation --- */
@@ -643,29 +652,7 @@ button:hover {
             }
         }
 
-        /* --- Blank Card Modal Styles --- */
-          #blank-card-input {
-    width: 100%;
-    min-height: 80px;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 8px;
-    border: 2px solid #555;
-    background-color: #2c2c2c;
-    color: #f0f0f0;
-    font-size: 1rem;
-    box-sizing: border-box;
-    resize: vertical;
-}
-
-.char-count {
-    text-align: right;
-    font-size: 0.8rem;
-    color: #aaa;
-    margin-bottom: 15px;
-}
-
-.char-count { font-size: 0.8rem; color: #aaa; text-align: right; margin-bottom: 15px; }
+        
 
 /* FIX: Add this rule to remove space after cards are hidden on larger screens */
 @media (min-width: 850px) {

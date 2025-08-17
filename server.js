@@ -169,6 +169,43 @@ function endGame(gameCode, reason, winner = null) {
     }, 60000); // 60 seconds
 }
 
+function handlePlayerDisconnect(gameCode, socketId) {
+    const game = games[gameCode];
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === socketId);
+    if (player && !player.disconnected) {
+        console.log(`Player ${player.name} disconnected from game ${gameCode}`);
+        player.disconnected = true;
+
+        // If the disconnected player was the Czar, we need to handle it.
+        if (game.currentCzar === socketId) {
+            // For now, we'll just end the round and start a new one.
+            io.to(gameCode).emit('errorMsg', `The Card Czar (${player.name}) disconnected. Starting a new round.`);
+            setTimeout(() => startNewRound(gameCode), 3000);
+        } else {
+             // Set a timeout to remove the player if they don't reconnect
+            player.disconnectTimeout = setTimeout(() => {
+                if (player.disconnected) { // Check if they are still disconnected
+                    game.players = game.players.filter(p => p.id !== socketId);
+                    console.log(`Player ${player.name} removed from game ${gameCode} due to inactivity.`);
+                    if (game.hostId === socketId) {
+                        const activePlayers = getActivePlayers(game);
+                        if (activePlayers.length > 0) {
+                            game.hostId = activePlayers[0].id;
+                        } else {
+                            endGame(gameCode, "The host left and no other players are in the game.");
+                            return;
+                        }
+                    }
+                    io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
+                }
+            }, 60000); // 60 seconds to reconnect
+        }
+        io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
+    }
+}
+
 // --- Socket.IO Connection Logic ---
 io.on('connection', (socket) => {
     socket.on('createGame', (data) => {
@@ -214,6 +251,7 @@ io.on('connection', (socket) => {
         if (!game) {
             return socket.emit('errorMsg', 'Game not found.');
         }
+        socket.gameCode = data.code;
 
 
         // Handle player rejoin
@@ -374,8 +412,25 @@ io.on('connection', (socket) => {
         
         if (winningPlayerId) {
             const winner = game.players.find(p => p.id === winningPlayerId);
+            if (!winner) return; // Should not happen, but good practice
+
             winner.score++;
-            game.roundWinnerInfo = { name: winner.name, cards: data.winningCards };
+
+            // Assemble the full winning sentence from the black card and white cards
+            let winningSentence = game.currentBlackCard.text;
+            // Check if the number of blanks matches the number of cards to avoid errors
+            // with special cards like "Make a haiku."
+            if ((winningSentence.match(/_/g) || []).length === data.winningCards.length) {
+                data.winningCards.forEach(cardText => {
+                    // Sequentially replace the first '_' found.
+                    winningSentence = winningSentence.replace(/_/, `<strong>${escapeHtml(cardText)}</strong>`);
+                });
+            } else {
+                // Fallback for when blank count doesn't match card count
+                winningSentence = data.winningCards.map(c => escapeHtml(c)).join(' / ');
+            }
+
+            game.roundWinnerInfo = { name: winner.name, sentence: winningSentence };
             io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
 
             if (!game.isEndless && winner.score >= game.winTarget) {
