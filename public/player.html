@@ -51,18 +51,29 @@
                 <div id="my-hand">
                     </div>
 
+                <div id="player-submission-view" style="display: none;">
+                    <h4>Your Submission:</h4>
+                    <div id="my-submission-area" class="card-group"></div>
+                    <h4 id="waiting-for-players-text">Waiting for...</h4>
+                    <div id="other-submissions-area" class="card-group"></div>
+                </div>
+
                 <div id="submit-button-container" style="display: none;">
                     <button id="submit-cards-btn">Submit Cards</button>
                 </div>
 
-              <div id="czar-judging-area" style="display: none;">
-                <h3>Choose the winning card:</h3>
-                <div id="cards-to-judge">
+                <div id="czar-judging-area" style="display: none;">
+                    <h3>Choose the winning card:</h3>
+                    <div id="cards-to-judge"></div>
+                    <div id="czar-confirm-container" style="display: none;">
+                        <button id="czar-confirm-btn">Confirm Winner</button>
                     </div>
-                <div id="czar-confirm-container" style="display: none;">
-                    <button id="czar-confirm-btn">Confirm Winner</button>
                 </div>
-            </div>
+
+                <div id="player-voting-area" style="display: none;">
+                    <h3>Vote for the best submission!</h3>
+                    <div id="cards-to-vote-on"></div>
+                </div>
             </div>
 
             <div id="game-over-view-player" style="display: none;">

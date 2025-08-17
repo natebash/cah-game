@@ -57,25 +57,20 @@ function joinGameFromURL() {
         const playerToken = sessionStorage.getItem('playerToken');
         const hostToken = sessionStorage.getItem('hostToken');
 
-        // This is the key change: Only prompt for a name if it's truly missing.
-        // This is a fallback for direct navigation or errors, not the main flow.
         if (!playerName) {
             while (!playerName || playerName.trim() === "") {
                 playerName = prompt("Please enter your name to join the game:", "");
-                // If the user cancels the prompt, stop the process.
                 if (playerName === null) {
                     alert("A name is required to join. Redirecting to homepage.");
                     window.location.href = '/';
                     return;
                 }
             }
-            // If we had to prompt, save the new name and clear any old tokens.
             sessionStorage.setItem('playerName', playerName.trim());
             sessionStorage.removeItem('playerToken');
             sessionStorage.removeItem('hostToken');
         }
         
-        // Now, we can safely attempt to join the game with a valid name.
         socket.emit('joinGame', { code: gameCode, name: playerName, token: playerToken || hostToken });
     }
 }
@@ -111,8 +106,10 @@ function setupIndexPage() {
         const name = document.getElementById('create-name').value;
         const winTarget = document.getElementById('win-target').value;
         const isEndless = document.getElementById('endless-mode').checked;
+        const isDemocratic = document.getElementById('democratic-mode').checked; // CHANGE: Read democratic mode
         if (name) {
-            socket.emit('createGame', { name, winTarget, isEndless });
+            // CHANGE: Send isDemocratic flag to server
+            socket.emit('createGame', { name, winTarget, isEndless, isDemocratic });
         }
     });
 
@@ -121,9 +118,8 @@ function setupIndexPage() {
         const code = document.getElementById('game-code-input-player').value.toUpperCase();
         if (name && code) {
             sessionStorage.setItem('playerName', name);
-            // We don't want to carry over a host token if we are a regular player
             sessionStorage.removeItem('hostToken');
-            sessionStorage.removeItem('playerToken'); // Clear old player token on new join
+            sessionStorage.removeItem('playerToken');
             navigateTo('player.html', code);
         }
     });
@@ -139,7 +135,6 @@ function setupIndexPage() {
         document.getElementById('win-target').disabled = e.target.checked;
     });
 
-    // Auto-uppercase and sanitize game code inputs
     sanitizeGameCodeInput('game-code-input-player');
     sanitizeGameCodeInput('game-code-input-board');
 }
@@ -157,17 +152,12 @@ function setupBoardPage() {
     // --- QR Code Generation ---
     const qrCodeElement = document.getElementById('qr-code');
     const joinUrlElement = document.getElementById('join-url-text');
-    const gameCode = getGameCodeFromURL(); // Use existing function to get 'game' parameter
+    const gameCode = getGameCodeFromURL();
 
     if (gameCode && qrCodeElement) {
-        // Construct the full URL for players to join, using the correct 'game' parameter
         const joinUrl = `${window.location.origin}/player.html?game=${gameCode}`;
-
-        // Update the text element with a user-friendly message
         joinUrlElement.textContent = `Or go to: ${window.location.host}/player.html`;
 
-        // Generate the QR code using the qrcode.js library
-        // This relies on qrcode.js being included in board.html before client.js
         if (typeof QRCode !== 'undefined') {
             new QRCode(qrCodeElement, {
                 text: joinUrl,
@@ -190,17 +180,15 @@ function showNotification(message, duration = 4000) {
 
     banner.textContent = message;
     banner.style.display = 'block';
-    // Use a timeout to trigger the fade-in and slide-down transition
     setTimeout(() => {
         banner.style.opacity = 1;
         banner.style.transform = 'translateY(0)';
     }, 10);
 
-    // Hide the banner after a delay
     setTimeout(() => {
         banner.style.opacity = 0;
         banner.style.transform = 'translateY(-20px)';
-        setTimeout(() => { banner.style.display = 'none'; }, 500); // Wait for transition
+        setTimeout(() => { banner.style.display = 'none'; }, 500);
     }, duration);
 }
 
@@ -213,7 +201,6 @@ function showVoteModal(initiatorName) {
         modalText.textContent = `${initiatorName} has proposed ending the game. A unanimous 'Yes' vote is required.`;
         modal.style.display = 'flex';
 
-        // Disable buttons if player has already voted (or is the initiator)
         const voteYesBtn = document.getElementById('vote-yes-btn');
         const voteNoBtn = document.getElementById('vote-no-btn');
         if (gameState.voteToEndState.votes[me.id]) {
@@ -227,95 +214,80 @@ function showVoteModal(initiatorName) {
 }
 
 function setupPlayerPage() {
-    const startGameBtn = document.getElementById('start-game-btn');
-    if (startGameBtn) {
-        startGameBtn.addEventListener('click', () => {
-            socket.emit('startGame', getGameCodeFromURL());
-        });
-    }
+    document.getElementById('start-game-btn')?.addEventListener('click', () => {
+        socket.emit('startGame', getGameCodeFromURL());
+    });
 
-    const submitCardsBtn = document.getElementById('submit-cards-btn');
-    if (submitCardsBtn) {
-        submitCardsBtn.addEventListener('click', () => {
-            // CHANGE: Send the card text based on the selected indices.
-            const me = gameState.players.find(p => p.id === socket.id);
-            const cardsToSubmit = selectedCardIndices.map(index => me.hand[index]);
-            if (cardsToSubmit.length > 0) {
-                socket.emit('submitCard', { code: gameState.code, cards: cardsToSubmit });
-                submitCardsBtn.parentElement.style.display = 'none';
-            }
-        });
-    }
+    document.getElementById('submit-cards-btn')?.addEventListener('click', () => {
+        const me = gameState.players.find(p => p.id === socket.id);
+        const cardsToSubmit = selectedCardIndices.map(index => me.hand[index]);
+        if (cardsToSubmit.length > 0) {
+            socket.emit('submitCard', { code: gameState.code, cards: cardsToSubmit });
+            document.getElementById('submit-cards-btn').parentElement.style.display = 'none';
+        }
+    });
 
-    const czarConfirmBtn = document.getElementById('czar-confirm-btn');
-    if (czarConfirmBtn) {
-        czarConfirmBtn.addEventListener('click', () => {
-            if (czarSelection) {
-                socket.emit('czarChoose', { code: gameState.code, winningCards: czarSelection });
-                czarConfirmBtn.parentElement.style.display = 'none';
-            }
-        });
-    }
+    document.getElementById('czar-confirm-btn')?.addEventListener('click', () => {
+        if (czarSelection) {
+            socket.emit('czarChoose', { code: gameState.code, winningCards: czarSelection });
+            document.getElementById('czar-confirm-btn').parentElement.style.display = 'none';
+        }
+    });
 
-    const voteToEndBtn = document.getElementById('vote-to-end-btn');
-    if (voteToEndBtn) {
-        voteToEndBtn.addEventListener('click', () => {
-            socket.emit('initiateVoteToEnd', { code: gameState.code });
-        });
-    }
+    document.getElementById('vote-to-end-btn')?.addEventListener('click', () => {
+        socket.emit('initiateVoteToEnd', { code: gameState.code });
+    });
 
-    const voteYesBtn = document.getElementById('vote-yes-btn');
-    if (voteYesBtn) {
-        voteYesBtn.addEventListener('click', () => {
-            socket.emit('castVote', { code: gameState.code, vote: 'yes' });
-            document.getElementById('vote-to-end-modal').style.display = 'none';
-        });
-    }
+    document.getElementById('vote-yes-btn')?.addEventListener('click', () => {
+        socket.emit('castVote', { code: gameState.code, vote: 'yes' });
+        document.getElementById('vote-to-end-modal').style.display = 'none';
+    });
 
-    const voteNoBtn = document.getElementById('vote-no-btn');
-    if (voteNoBtn) {
-        voteNoBtn.addEventListener('click', () => {
-            socket.emit('castVote', { code: gameState.code, vote: 'no' });
-            document.getElementById('vote-to-end-modal').style.display = 'none';
-        });
-    }
+    document.getElementById('vote-no-btn')?.addEventListener('click', () => {
+        socket.emit('castVote', { code: gameState.code, vote: 'no' });
+        document.getElementById('vote-to-end-modal').style.display = 'none';
+    });
 
     // --- Event Delegation for Dynamic Elements ---
     document.body.addEventListener('click', (e) => {
-        // Kick Player Button in Lobby
         if (e.target.matches('.kick-btn')) {
             const playerIdToKick = e.target.dataset.playerId;
             socket.emit('kickPlayer', { code: gameState.code, playerIdToKick });
         }
 
-      // Player Hand Card Selection
-const cardButton = e.target.closest('#my-hand .card.white');
-if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
-    // Look up the player and the card index
-    const me = gameState.players.find(p => p.id === socket.id);
-    const cardIndex = parseInt(cardButton.dataset.cardIndex, 10);
-    const cardText = me.hand[cardIndex];
+        const cardButton = e.target.closest('#my-hand .card.white');
+        if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
+            const me = gameState.players.find(p => p.id === socket.id);
+            const cardIndex = parseInt(cardButton.dataset.cardIndex, 10);
+            const cardText = me.hand[cardIndex];
 
-    if (cardText === '___BLANK_CARD___') {
-        const pickCount = gameState.currentBlackCard.pick;
-        if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
-            return;
+            if (cardText === '___BLANK_CARD___') {
+                const pickCount = gameState.currentBlackCard.pick;
+                if (pickCount > 1 && !confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
+                    return;
+                }
+                document.getElementById('blank-card-modal').style.display = 'flex';
+            } else {
+                handleCardSelect(cardIndex);
+            }
         }
-        document.getElementById('blank-card-modal').style.display = 'flex';
-    } else {
-        handleCardSelect(cardIndex); // CHANGE: Pass index, not text
-    }
-}
 
-       // Czar Card Selection
-       const cardGroup = e.target.closest('#cards-to-judge .card-group');
-       if (cardGroup && cardGroup.dataset.playerId) {
-       const selectedPlayerId = cardGroup.dataset.playerId;
-       const submission = gameState.submissions[selectedPlayerId];
-       if (submission) {
-        handleCzarSelect(submission);
-       }
-  }
+        // CHANGE: Consolidated click listener for both Czar judging and player voting
+        const interactiveCardGroup = e.target.closest('.card-group.interactive');
+        if (interactiveCardGroup && !interactiveCardGroup.hasAttribute('aria-disabled')) {
+            const selectedPlayerId = interactiveCardGroup.dataset.playerId;
+            const submission = gameState.submissions[selectedPlayerId];
+
+            if (submission) {
+                if (gameState.isDemocratic) {
+                    // Democratic mode: emit a vote
+                    socket.emit('playerVote', { code: gameState.code, submissionOwnerId: selectedPlayerId });
+                } else {
+                    // Czar mode: handle local selection
+                    handleCzarSelect(submission);
+                }
+            }
+        }
     });
 
     // --- Blank Card Modal Logic ---
@@ -327,15 +299,15 @@ if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
         const blankCardCancelBtn = document.getElementById('blank-card-cancel-btn');
         blankCardCancelBtn.addEventListener('click', () => {
             blankCardModal.style.display = 'none';
-            textarea.value = ''; // Clear text
+            textarea.value = '';
         });
         blankCardSubmitBtn.addEventListener('click', () => {
             const cardText = textarea.value.trim();
             if (cardText.length > 0 && cardText.length <= 150) {
                 socket.emit('submitBlankCard', { code: gameState.code, cardText: cardText });
                 blankCardModal.style.display = 'none';
-                textarea.value = ''; // Clear for next time
-                document.getElementById('submit-cards-btn').parentElement.style.display = 'none'; // Hide regular submit button
+                textarea.value = '';
+                document.getElementById('submit-cards-btn').parentElement.style.display = 'none';
             } else {
                 showNotification('Card text must be between 1 and 150 characters.');
             }
@@ -352,8 +324,8 @@ if (cardButton && !cardButton.disabled && cardButton.dataset.cardIndex) {
 // --- SOCKET.IO HANDLERS ---
 socket.on('gameCreated', (data) => {
     sessionStorage.setItem('playerName', data.name);
-    sessionStorage.setItem('hostToken', data.token); // Save the host token
-    sessionStorage.removeItem('playerToken'); // Clear any previous player token
+    sessionStorage.setItem('hostToken', data.token);
+    sessionStorage.removeItem('playerToken');
     navigateTo('player.html', data.code);
 });
 
@@ -362,18 +334,16 @@ socket.on('joinSuccess', (data) => {
 });
 
 socket.on('gameUpdate', (game) => {
-    // If the state transitions to 'playing', it's a new round. Reset Czar selection.
     if (game.state === 'playing' && gameState.state !== 'playing') {
         czarSelection = null;
     }
 
     gameState = game;
-    // Reset selection on update unless we are in the middle of judging
-    if (gameState.state !== 'judging') {
+    if (gameState.state !== 'judging' && gameState.state !== 'voting') {
         const me = gameState.players.find(p => p.id === socket.id);
         const submitted = me && !!gameState.submissions[me.id];
         if(!submitted) {
-            selectedCardIndices = []; // CHANGE: Reset selected indices
+            selectedCardIndices = [];
         }
     }
 
@@ -433,10 +403,8 @@ socket.on('youWereKicked', () => {
 });
 
 socket.on('errorMsg', (msg) => {
-    // Critical errors that should send the user home
     const criticalErrors = ['Game not found.', 'That name is already taken.'];
     if (criticalErrors.includes(msg)) {
-        // Clear the stored data that caused the error
         sessionStorage.removeItem('playerName');
         sessionStorage.removeItem('playerToken');
         sessionStorage.removeItem('hostToken');
@@ -447,15 +415,15 @@ socket.on('errorMsg', (msg) => {
     }
 
     const errorEl = document.getElementById('error-message');
-    if (errorEl) { // This is on the index page
+    if (errorEl) {
         errorEl.textContent = msg;
-    } else { // For non-critical errors on other pages
+    } else {
         showNotification(msg, 5000);
     }
 });
 
 socket.on('disconnect', () => {
-  showNotification('Connection lost! Attempting to reconnect...', 999999); // Show a very long notification
+  showNotification('Connection lost! Attempting to reconnect...', 999999);
 });
 
 socket.on('reconnect', () => {
@@ -465,7 +433,6 @@ socket.on('reconnect', () => {
 
 // --- HTML TEMPLATE FUNCTIONS ---
 
-/** Creates the HTML for the player list in the lobby. */
 function createLobbyPlayerListHTML(players, isHost, myId) {
     return players
         .filter(p => p.name !== 'TV_BOARD')
@@ -481,12 +448,10 @@ function createLobbyPlayerListHTML(players, isHost, myId) {
         }).join('');
 }
 
-/** Creates the HTML for the player's hand of cards. */
 function createPlayerHandHTML(me, isCzar, submitted) {
-    // We now include the 'index' of the card
     return me.hand.map((cardText, index) => {
         const isDisabled = isCzar || submitted || gameState.state !== 'playing';
-        const isSelected = selectedCardIndices.includes(index); // CHANGE: Check for index
+        const isSelected = selectedCardIndices.includes(index);
         const isBlank = cardText === '___BLANK_CARD___';
 
         let classes = 'card white';
@@ -495,27 +460,53 @@ function createPlayerHandHTML(me, isCzar, submitted) {
 
         const content = isBlank ? `<p>Write your own card!</p>` : `<p>${cardText}</p>`;
 
-        // CHANGE: Use the safe 'data-card-index' instead of 'data-card-text'
         return `<button class="${classes}" data-card-index="${index}" ${isDisabled ? 'disabled' : ''}>${content}</button>`;
     }).join('');
 }
-/** Creates the HTML for the submissions the Czar needs to judge. */
-function createCzarChoicesHTML(submissions, czarSelection) {
-    let html = '';
-    for (const playerId in submissions) {
-        const submission = submissions[playerId];
-        const isSelected = czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission);
-        const selectedClass = isSelected ? ' czar-selected' : '';
 
-        // CHANGE: Store the playerId instead of the full submission object.
-        html += `<div class="card-group interactive${selectedClass}" data-player-id="${playerId}">
+/** CHANGE: Creates the HTML for submissions for a Czar to judge or for players to vote on. */
+function createInteractiveSubmissionsHTML(submissions, { myId, isVoting, czarSelection, votes }) {
+    let html = '';
+    const submissionEntries = Object.entries(submissions);
+    
+    // Shuffle for voting to anonymize order
+    if (isVoting) {
+        for (let i = submissionEntries.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [submissionEntries[i], submissionEntries[j]] = [submissionEntries[j], submissionEntries[i]];
+        }
+    }
+
+    const myVote = isVoting ? votes[myId] : null;
+    const hasVoted = !!myVote;
+
+    for (const [playerId, submission] of submissionEntries) {
+        const isMySubmission = isVoting && playerId === myId;
+        const isDisabled = isVoting && (isMySubmission || hasVoted);
+        
+        let isSelected = false;
+        if (isVoting) {
+            isSelected = myVote === playerId;
+        } else {
+            isSelected = czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission);
+        }
+        
+        const voteCount = isVoting ? Object.values(votes).filter(vote => vote === playerId).length : 0;
+        
+        let classes = 'card-group';
+        if (!isDisabled) classes += ' interactive';
+        if (isSelected) classes += ' czar-selected';
+        
+        const voteDisplay = isVoting ? `<div class="vote-count">${voteCount} vote(s)</div>` : '';
+
+        html += `<div class="${classes}" data-player-id="${playerId}" ${isDisabled ? 'aria-disabled="true"' : ''}>
+            ${voteDisplay}
             ${submission.map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}
         </div>`;
     }
     return html;
 }
 
-/** Creates the HTML for the main scoreboard on the board view. */
 function createBoardScoreboardHTML(players, currentCzarId) {
     return players
         .filter(p => p.name !== 'TV_BOARD')
@@ -531,19 +522,15 @@ function createBoardScoreboardHTML(players, currentCzarId) {
         }).join('');
 }
 
-/** Creates the HTML for the submissions area on the board view. */
 function createBoardSubmissionsHTML(state, submissions) {
-    if (state === 'judging') {
-        // Convert submissions object to an array of card arrays
+    if (state === 'judging' || state === 'voting') {
         const submissionArray = Object.values(submissions);
 
-        // Shuffle the array to randomize display order for anonymity
         for (let i = submissionArray.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [submissionArray[i], submissionArray[j]] = [submissionArray[j], submissionArray[i]];
         }
 
-        // Map the shuffled array to HTML
         return submissionArray.map(submission =>
             `<div class="card-group">${submission.map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('')}</div>`
         ).join('');
@@ -556,9 +543,7 @@ function createBoardSubmissionsHTML(state, submissions) {
 
 // --- RENDER LOGIC ---
 function renderBoard() {
-    if (gameState.state === 'finished') {
-        return; // Don't re-render if the game is over
-    }
+    if (gameState.state === 'finished') return;
 
     document.getElementById('game-over-area').style.display = 'none';
     document.getElementById('game-code-display').textContent = gameState.code;
@@ -581,14 +566,13 @@ function renderBoard() {
 
     renderVoteDisplay();
 }
+
 function renderPlayer() {
-    if (gameState.state === 'finished') {
-        return; // Don't re-render if the game is over
-    }
+    if (gameState.state === 'finished') return;
+    
     const me = gameState.players.find(p => p.id === socket.id);
     if (!me) return;
 
-    // --- Populate Scoreboard ---
     const scoreboardContent = document.querySelector('#player-scoreboard .scoreboard-content');
     if (scoreboardContent) {
         scoreboardContent.innerHTML = gameState.players
@@ -600,8 +584,8 @@ function renderPlayer() {
                 const isCzar = p.id === gameState.currentCzar;
                 let classes = 'score-item' + disconnected;
                 if (isMe) classes += ' me';
-                if (isCzar) classes += ' czar';
-                const czarIndicator = isCzar ? ' (Czar)' : '';
+                if (isCzar && !gameState.isDemocratic) classes += ' czar'; // Only show Czar in standard mode
+                const czarIndicator = isCzar && !gameState.isDemocratic ? ' (Czar)' : '';
                 const disconnectedIndicator = p.disconnected ? ' (disconnected)' : '';
                 return `<div class="${classes}"><span class="name">${p.name}${czarIndicator}${disconnectedIndicator}</span><span class="score">${p.score}</span></div>`;
             }).join('');
@@ -619,11 +603,9 @@ function renderPlayer() {
         gameCodeBox.style.display = 'none';
     }
 
-    // --- Endless Mode Actions ---
     const endlessActions = document.getElementById('endless-game-actions');
     if (gameState.isEndless && gameState.state !== 'waiting' && gameState.state !== 'finished') {
         endlessActions.style.display = 'block';
-
         const voteToEndBtn = document.getElementById('vote-to-end-btn');
         voteToEndBtn.disabled = gameState.voteToEndState.inProgress;
         voteToEndBtn.textContent = gameState.voteToEndState.inProgress ? 'Vote in Progress...' : 'Vote to End Game';
@@ -631,7 +613,6 @@ function renderPlayer() {
         endlessActions.style.display = 'none';
     }
 
-    // Show or hide the vote modal based on game state
     const voteModal = document.getElementById('vote-to-end-modal');
     if (gameState.voteToEndState.inProgress) {
         showVoteModal(gameState.voteToEndState.initiatorName);
@@ -647,11 +628,7 @@ function renderPlayer() {
 
         const startGameContainer = document.getElementById('start-game-container');
         const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
-        if (isHost && activePlayers.length >= 2) {
-            startGameContainer.style.display = 'block';
-        } else {
-            startGameContainer.style.display = 'none';
-        }
+        startGameContainer.style.display = (isHost && activePlayers.length >= 2) ? 'block' : 'none';
     } else {
         document.getElementById('lobby-view').style.display = 'none';
         document.getElementById('game-view').style.display = 'block';
@@ -665,45 +642,55 @@ function renderPlayer() {
 
         const isCzar = gameState.currentCzar === socket.id;
         const submitted = !!gameState.submissions[socket.id];
-        
-        const myHandDiv = document.getElementById('my-hand');
-        const czarJudgingArea = document.getElementById('czar-judging-area');
-        const playerStatus = document.getElementById('player-status');
-        czarJudgingArea.style.display = 'none';
-        // Ensure the hand's special class is removed if the player becomes the czar
-        if (myHandDiv) myHandDiv.classList.remove('selection-complete');
+        const isDemocratic = gameState.isDemocratic;
 
-        if (isCzar) {
-            // If the player is the Czar, hide their hand.
-            myHandDiv.style.display = 'none';
-            myHandDiv.innerHTML = ''; // Clear the hand to be safe
+        // Hide all views by default
+        const views = ['my-hand', 'player-submission-view', 'czar-judging-area', 'player-voting-area'];
+        views.forEach(id => document.getElementById(id).style.display = 'none');
 
+        if (isDemocratic && gameState.state === 'voting') {
+            // DEMOCRATIC MODE - VOTING
+            const votingArea = document.getElementById('player-voting-area');
+            votingArea.style.display = 'block';
+            const myVote = gameState.votes ? gameState.votes[socket.id] : null;
+            document.getElementById('player-status').textContent = myVote ? 'Vote cast. Waiting for others.' : 'Vote for your favorite submission!';
+            document.getElementById('cards-to-vote-on').innerHTML = createInteractiveSubmissionsHTML(gameState.submissions, { myId: socket.id, isVoting: true, czarSelection: null, votes: gameState.votes || {} });
+        } else if (isCzar && !isDemocratic) {
+            // CZAR MODE
+            const czarJudgingArea = document.getElementById('czar-judging-area');
             if (gameState.state === 'judging') {
-                playerStatus.textContent = 'You are the Card Czar. Choose your favorite!';
+                document.getElementById('player-status').textContent = 'You are the Card Czar. Choose your favorite!';
                 czarJudgingArea.style.display = 'block';
-                document.getElementById('cards-to-judge').innerHTML = createCzarChoicesHTML(gameState.submissions, czarSelection);
+                document.getElementById('cards-to-judge').innerHTML = createInteractiveSubmissionsHTML(gameState.submissions, { myId: socket.id, isVoting: false, czarSelection: czarSelection, votes: {} });
             } else {
-                playerStatus.textContent = "You are the Card Czar. Sit back and wait.";
+                document.getElementById('player-status').textContent = "You are the Card Czar. Sit back and wait.";
             }
         } else {
-            // If the player is not the Czar, show and render their hand.
-            myHandDiv.style.display = 'flex';
-            myHandDiv.innerHTML = createPlayerHandHTML(me, isCzar, submitted);
-
-            // Add or remove the 'selection-complete' class to trigger card hiding animation
-            const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
-            if (selectedCardIndices.length === pickCount) { // CHANGE: Check length of indices array
-                myHandDiv.classList.add('selection-complete');
-            } else {
-                myHandDiv.classList.remove('selection-complete');
-            }
-
+            // REGULAR PLAYER VIEW (INCLUDES DEMOCRATIC SUBMISSION PHASE)
             if (submitted) {
-                playerStatus.textContent = 'Your submission is in. Waiting for others.';
-            } else if (gameState.state === 'playing') {
-                playerStatus.textContent = `Pick ${pickCount} card${pickCount > 1 ? 's' : ''}.`;
+                // CHANGE: Player has submitted, show their card and wait for others
+                const submissionView = document.getElementById('player-submission-view');
+                submissionView.style.display = 'block';
+                document.getElementById('player-status').textContent = 'Your submission is in. Waiting for others.';
+                
+                const mySubmissionHTML = gameState.submissions[socket.id].map(cardText => `<div class="card white"><p>${cardText}</p></div>`).join('');
+                document.getElementById('my-submission-area').innerHTML = mySubmissionHTML;
+
+                const activePlayers = gameState.players.filter(p => p.name !== 'TV_BOARD' && !p.disconnected);
+                const requiredSubmissions = gameState.isDemocratic ? activePlayers.length : activePlayers.length - 1;
+                const waitingForCount = Math.max(0, requiredSubmissions - Object.keys(gameState.submissions).length);
+                
+                document.getElementById('waiting-for-players-text').textContent = `Waiting for ${waitingForCount} more player(s)...`;
+                document.getElementById('other-submissions-area').innerHTML = '<div class="card white back"></div>'.repeat(waitingForCount);
             } else {
-                playerStatus.textContent = "Waiting for the round to start...";
+                // Player needs to pick a card
+                const myHandDiv = document.getElementById('my-hand');
+                myHandDiv.style.display = 'flex';
+                myHandDiv.innerHTML = createPlayerHandHTML(me, isCzar, submitted);
+                
+                const pickCount = gameState.currentBlackCard ? gameState.currentBlackCard.pick : 1;
+                document.getElementById('player-status').textContent = `Pick ${pickCount} card${pickCount > 1 ? 's' : ''}.`;
+                myHandDiv.classList.toggle('selection-complete', selectedCardIndices.length === pickCount);
             }
         }
     }
@@ -712,30 +699,24 @@ function renderPlayer() {
 function handleCzarSelect(submission) {
     czarSelection = submission;
     document.getElementById('czar-confirm-container').style.display = 'block';
-    // Re-render to show the highlight
-    document.getElementById('cards-to-judge').innerHTML = createCzarChoicesHTML(gameState.submissions, czarSelection);
+    document.getElementById('cards-to-judge').innerHTML = createInteractiveSubmissionsHTML(gameState.submissions, { myId: socket.id, isVoting: false, czarSelection: czarSelection, votes: {} });
 }
 
-function handleCardSelect(cardIndex) { // CHANGE: Use index instead of text
+function handleCardSelect(cardIndex) {
     const pickCount = gameState.currentBlackCard.pick;
-    const indexInSelected = selectedCardIndices.indexOf(cardIndex); // CHANGE: Check for index
+    const indexInSelected = selectedCardIndices.indexOf(cardIndex);
 
     if (indexInSelected > -1) {
-        selectedCardIndices.splice(indexInSelected, 1); // Deselect
+        selectedCardIndices.splice(indexInSelected, 1);
     } else {
         if (selectedCardIndices.length < pickCount) {
-            selectedCardIndices.push(cardIndex); // Select
+            selectedCardIndices.push(cardIndex);
         }
     }
     
-    // Update submit button visibility
     const submitContainer = document.getElementById('submit-button-container');
-    if (selectedCardIndices.length === pickCount) { // CHANGE: Check length of indices array
-        submitContainer.style.display = 'block';
-    } else {
-        submitContainer.style.display = 'none';
-    }
-    // Re-render to show selection state
+    submitContainer.style.display = (selectedCardIndices.length === pickCount) ? 'block' : 'none';
+    
     renderPlayer();
 }
 
@@ -772,7 +753,6 @@ function renderVoteDisplay() {
     }
 }
 
-/** Renders the winner announcement banner on both board and player views. */
 function renderWinnerBanner(elementId) {
     const winnerAnnouncement = document.getElementById(elementId);
     if (!winnerAnnouncement) return;

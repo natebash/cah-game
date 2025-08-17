@@ -96,9 +96,9 @@ function startNewRound(gameCode) {
 
     // Ensure there are enough players to continue
     const activePlayers = getActivePlayers(game);
-    if (activePlayers.length < 2) { // Need at least 2 players (1 czar, 1 player) for a round
+    if (activePlayers.length < 2) {
         game.state = 'waiting';
-        game.currentCzar = null; // No czar if we're waiting
+        game.currentCzar = null;
         io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
         return;
     }
@@ -107,15 +107,21 @@ function startNewRound(gameCode) {
     game.state = 'playing';
     game.submissions = {};
     game.roundWinnerInfo = null;
+    game.votes = {}; // CHANGE: Reset votes for the new round
+    
     // Reset vote state if a new round starts while a vote was in progress
     if (game.voteToEndState.inProgress) {
         game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
         io.to(gameCode).emit('voteToEndResult', { passed: false, reason: 'A new round started.' });
     }
     
-    // Rotate Card Czar
-    game.czarIndex = (game.czarIndex + 1) % activePlayers.length;
-    game.currentCzar = activePlayers[game.czarIndex].id;
+    // CHANGE: Rotate Card Czar only if not in democratic mode
+    if (!game.isDemocratic) {
+        game.czarIndex = (game.czarIndex + 1) % activePlayers.length;
+        game.currentCzar = activePlayers[game.czarIndex].id;
+    } else {
+        game.currentCzar = null; // No czar in democratic mode
+    }
 
     // Draw new black card
     game.currentBlackCard = game.blackDeck.pop();
@@ -132,26 +138,22 @@ function startNewRound(gameCode) {
 function getSerializableGameState(game) {
   if (!game) return null;
 
-  // Create a "safe" version of the game state to send to clients,
-  // removing sensitive or server-only data.
   const {
-    whiteDeck, // Don't send the entire deck to clients.
-    blackDeck, // Don't send the entire deck to clients.
-    hostToken, // This is a secret token for the host only.
-    ...safeGameData // Keep the rest of the game properties.
+    whiteDeck,
+    blackDeck,
+    hostToken,
+    ...safeGameData
   } = game;
 
-  // Now, do the same for the players array.
   const serializablePlayers = game.players.map(player => {
     const {
-      disconnectTimeout, // This is a server-side object and shouldn't be sent.
-      token, // This is a secret token for rejoining.
-      ...safePlayerData // Keep the rest of the player properties.
+      disconnectTimeout,
+      token,
+      ...safePlayerData
     } = player;
     return safePlayerData;
   });
 
-  // Return a new object with the safe game data and the sanitized players list.
   return {
     ...safeGameData,
     players: serializablePlayers,
@@ -163,10 +165,9 @@ function endGame(gameCode, reason, winner = null) {
     if (!game) return;
     game.state = 'finished';
     io.to(gameCode).emit('gameOver', { reason, winner });
-    // Clean up the game object after a delay to allow clients to see the final state
     setTimeout(() => {
         delete games[gameCode];
-    }, 60000); // 60 seconds
+    }, 60000);
 }
 
 function handlePlayerDisconnect(gameCode, socketId) {
@@ -178,15 +179,12 @@ function handlePlayerDisconnect(gameCode, socketId) {
         console.log(`Player ${player.name} disconnected from game ${gameCode}`);
         player.disconnected = true;
 
-        // If the disconnected player was the Czar, we need to handle it.
         if (game.currentCzar === socketId) {
-            // For now, we'll just end the round and start a new one.
             io.to(gameCode).emit('errorMsg', `The Card Czar (${player.name}) disconnected. Starting a new round.`);
             setTimeout(() => startNewRound(gameCode), 3000);
         } else {
-             // Set a timeout to remove the player if they don't reconnect
             player.disconnectTimeout = setTimeout(() => {
-                if (player.disconnected) { // Check if they are still disconnected
+                if (player.disconnected) {
                     game.players = game.players.filter(p => p.id !== socketId);
                     console.log(`Player ${player.name} removed from game ${gameCode} due to inactivity.`);
                     if (game.hostId === socketId) {
@@ -200,7 +198,7 @@ function handlePlayerDisconnect(gameCode, socketId) {
                     }
                     io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
                 }
-            }, 60000); // 60 seconds to reconnect
+            }, 60000);
         }
         io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
     }
@@ -209,35 +207,37 @@ function handlePlayerDisconnect(gameCode, socketId) {
 // --- Socket.IO Connection Logic ---
 io.on('connection', (socket) => {
     socket.on('createGame', (data) => {
-        const { name, winTarget, isEndless } = data;
+        // CHANGE: Accept isDemocratic flag
+        const { name, winTarget, isEndless, isDemocratic } = data;
         const gameCode = generateGameCode();
         const hostToken = crypto.randomBytes(16).toString('hex');
         
         games[gameCode] = {
             code: gameCode,
-            hostId: null, // Will be set when host joins with token
+            hostId: null,
             hostToken: hostToken,
-            players: [], // Host will join like a regular player
+            players: [],
             state: 'waiting',
             round: 0,
             winTarget: isEndless ? null : parseInt(winTarget, 10) || 7,
             isEndless: isEndless,
+            isDemocratic: isDemocratic || false, // CHANGE: Store game mode
+            votes: {}, // CHANGE: Add votes object for democratic mode
             voteToEndState: {
                 inProgress: false,
                 initiatorName: null,
-                votes: {} // { playerId: vote ('yes'/'no') }
+                votes: {}
             },
             czarIndex: -1,
             currentCzar: null,
             currentBlackCard: null,
             submissions: {},
-            whiteDeck: [], // Will be populated below
+            whiteDeck: [],
             blackDeck: shuffle([...allBlackCards]),
         };
 
-        // Create a unique white card deck for this game with blank cards included
         const gameWhiteDeck = [...allWhiteCards];
-        const blankCardCount = Math.floor(gameWhiteDeck.length * 0.02); // ~2% blank cards
+        const blankCardCount = Math.floor(gameWhiteDeck.length * 0.02);
         for (let i = 0; i < blankCardCount; i++) {
             gameWhiteDeck.push('___BLANK_CARD___');
         }
@@ -253,8 +253,6 @@ io.on('connection', (socket) => {
         }
         socket.gameCode = data.code;
 
-
-        // Handle player rejoin
         const rejoiningPlayer = game.players.find(p => p.name === data.name && p.disconnected);
         if (rejoiningPlayer && data.token === rejoiningPlayer.token) {
             if (rejoiningPlayer.disconnectTimeout) {
@@ -269,7 +267,6 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Prevent new players from joining with a name that is already in use (active or disconnected).
         if (data.name !== 'TV_BOARD' && game.players.some(p => p.name.toLowerCase() === data.name.toLowerCase())) {
             return socket.emit('errorMsg', 'That name is already taken.');
         }
@@ -285,35 +282,31 @@ io.on('connection', (socket) => {
             disconnectTimeout: null
         };
 
-        // Correctly assign hostId if the token matches
         if (data.token && data.token === game.hostToken && !game.hostId) {
             game.hostId = socket.id;
-            player.token = game.hostToken; // Host uses the game's hostToken
+            player.token = game.hostToken;
         }
         
         game.players.push(player);
         socket.join(data.code);
 
-        // Send the player their unique token for rejoining purposes
         socket.emit('joinSuccess', { name: player.name, token: player.token });
         io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
     
     socket.on('kickPlayer', (data) => {
         const game = games[data.code];
-        // Ensure the request is from the host and the game is in the waiting state
         if (game && game.hostId === socket.id && game.state === 'waiting') {
             const playerIndex = game.players.findIndex(p => p.id === data.playerIdToKick);
             if (playerIndex > -1) {
                 const kickedPlayer = game.players.splice(playerIndex, 1)[0];
                 const kickedSocket = io.sockets.sockets.get(kickedPlayer.id);
                 if (kickedSocket) {
-                    // Force the socket to leave the room and disconnect.
                     kickedSocket.leave(data.code);
                     kickedSocket.disconnect(true);
                 }
                 io.to(kickedPlayer.id).emit('youWereKicked');
-                io.to(data.code).emit('gameUpdate', getSerializableGameState(game)); // Update everyone else
+                io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
             }
         }
     });
@@ -323,17 +316,11 @@ io.on('connection', (socket) => {
         const player = game ? game.players.find(p => p.id === socket.id) : null;
         if (!game || !player || game.submissions[socket.id] || socket.id === game.currentCzar) return;
 
-        // 1. Validate
         if (typeof cardText !== 'string' || cardText.length === 0 || cardText.length > 150) {
-            return; // Or send an error back to the user
+            return;
         }
         const sanitizedText = escapeHtml(cardText.trim());
 
-        // 2. Save to cards.json
-        // Note: This file-based approach can have race conditions if multiple users submit
-        // a blank card simultaneously. For a larger application, a database or a more
-        // robust file-locking mechanism would be recommended.
-        // FIX: Switched to synchronous file I/O to prevent race conditions.
         const cardsPath = path.join(__dirname, 'public', 'cards.json');
         try {
             const fileContent = fs.readFileSync(cardsPath, 'utf8');
@@ -345,15 +332,13 @@ io.on('connection', (socket) => {
                 data.push(customPack);
             }
             
-            // FIX: Check if the card already exists before adding it
             if (!customPack.white.some(c => c.text.toLowerCase() === sanitizedText.toLowerCase())) {
                 customPack.white.push({ text: sanitizedText, pack: 999 });
                 fs.writeFileSync(cardsPath, JSON.stringify(data, null, 4));
                 
-                // FIX: Add the new card to the in-memory decks for the current session.
-                allWhiteCards.push(sanitizedText); // For future games
-                game.whiteDeck.push(sanitizedText); // For the current game
-                shuffle(game.whiteDeck); // Re-shuffle the deck
+                allWhiteCards.push(sanitizedText);
+                game.whiteDeck.push(sanitizedText);
+                shuffle(game.whiteDeck);
             }
         } catch (err) {
             if (err) {
@@ -362,8 +347,7 @@ io.on('connection', (socket) => {
             }
         }
 
-        // 4. Handle submission (similar to 'submitCard')
-        game.submissions[socket.id] = [sanitizedText]; // Treat as a single card submission
+        game.submissions[socket.id] = [sanitizedText];
         const blankCardIndex = player.hand.indexOf('___BLANK_CARD___');
         if (blankCardIndex > -1) player.hand.splice(blankCardIndex, 1);
         checkSubmissionsAndAdvance(code);
@@ -372,7 +356,6 @@ io.on('connection', (socket) => {
     socket.on('startGame', (gameCode) => {
         const game = games[gameCode];
         if (game && socket.id === game.hostId) {
-            // Add server-side validation before starting
             const activePlayers = getActivePlayers(game);
             if (activePlayers.length < 2) {
                 return socket.emit('errorMsg', 'Cannot start game. At least 2 active players are required.');
@@ -394,39 +377,39 @@ io.on('connection', (socket) => {
     function checkSubmissionsAndAdvance(gameCode) {
         const game = games[gameCode];
         if (!game) return;
-        const requiredSubmissions = getActivePlayers(game).length - 1;
+        // CHANGE: Submission requirement depends on game mode
+        const activePlayers = getActivePlayers(game);
+        const requiredSubmissions = game.isDemocratic ? activePlayers.length : activePlayers.length - 1;
+
         if (Object.keys(game.submissions).length >= requiredSubmissions) {
-            game.state = 'judging';
+            // CHANGE: Transition to 'voting' state in democratic mode
+            game.state = game.isDemocratic ? 'voting' : 'judging';
+            game.votes = {}; // Clear previous votes
         }
         io.to(gameCode).emit('gameUpdate', getSerializableGameState(game));
     }
 
     socket.on('czarChoose', (data) => {
         const game = games[data.code];
-        if (!game || socket.id !== game.currentCzar || game.state !== 'judging') return;
+        // CHANGE: This logic only runs in standard mode
+        if (!game || socket.id !== game.currentCzar || game.state !== 'judging' || game.isDemocratic) return;
         
-        // FIX: Find the winning player by matching the submitted cards
         const winningPlayerId = Object.keys(game.submissions).find(
             id => JSON.stringify(game.submissions[id]) === JSON.stringify(data.winningCards)
         );
         
         if (winningPlayerId) {
             const winner = game.players.find(p => p.id === winningPlayerId);
-            if (!winner) return; // Should not happen, but good practice
+            if (!winner) return;
 
             winner.score++;
 
-            // Assemble the full winning sentence from the black card and white cards
             let winningSentence = game.currentBlackCard.text;
-            // Check if the number of blanks matches the number of cards to avoid errors
-            // with special cards like "Make a haiku."
             if ((winningSentence.match(/_/g) || []).length === data.winningCards.length) {
                 data.winningCards.forEach(cardText => {
-                    // Sequentially replace the first '_' found.
                     winningSentence = winningSentence.replace(/_/, `<strong>${escapeHtml(cardText)}</strong>`);
                 });
             } else {
-                // Fallback for when blank count doesn't match card count
                 winningSentence = data.winningCards.map(c => escapeHtml(c)).join(' / ');
             }
 
@@ -441,6 +424,75 @@ io.on('connection', (socket) => {
         }
     });
 
+    // CHANGE: New event handler for democratic voting
+    socket.on('playerVote', (data) => {
+        const game = games[data.code];
+        const player = game ? game.players.find(p => p.id === socket.id) : null;
+        const { submissionOwnerId } = data;
+
+        if (!game || !player || !game.isDemocratic || game.state !== 'voting' || game.votes[socket.id] || socket.id === submissionOwnerId) {
+            return;
+        }
+
+        game.votes[socket.id] = submissionOwnerId;
+        const activePlayers = getActivePlayers(game);
+
+        if (Object.keys(game.votes).length >= activePlayers.length) {
+            // All votes are in, tally them up
+            const voteCounts = Object.values(game.votes).reduce((acc, id) => {
+                acc[id] = (acc[id] || 0) + 1;
+                return acc;
+            }, {});
+
+            let winningPlayerId = null;
+            let maxVotes = 0;
+            let isTie = false;
+
+            for (const playerId in voteCounts) {
+                if (voteCounts[playerId] > maxVotes) {
+                    maxVotes = voteCounts[playerId];
+                    winningPlayerId = playerId;
+                    isTie = false;
+                } else if (voteCounts[playerId] === maxVotes) {
+                    isTie = true;
+                }
+            }
+
+            if (isTie || !winningPlayerId) {
+                game.roundWinnerInfo = { name: "It's a tie!", sentence: "No points awarded." };
+                io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
+                setTimeout(() => startNewRound(data.code), 5000);
+            } else {
+                const winner = game.players.find(p => p.id === winningPlayerId);
+                const winningCards = game.submissions[winningPlayerId];
+                if (!winner || !winningCards) return;
+
+                winner.score++;
+                
+                let winningSentence = game.currentBlackCard.text;
+                if ((winningSentence.match(/_/g) || []).length === winningCards.length) {
+                    winningCards.forEach(cardText => {
+                        winningSentence = winningSentence.replace(/_/, `<strong>${escapeHtml(cardText)}</strong>`);
+                    });
+                } else {
+                    winningSentence = winningCards.map(c => escapeHtml(c)).join(' / ');
+                }
+
+                game.roundWinnerInfo = { name: winner.name, sentence: winningSentence };
+                io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
+
+                if (!game.isEndless && winner.score >= game.winTarget) {
+                    setTimeout(() => endGame(data.code, `${winner.name} reached the score limit!`, winner), 5000);
+                } else {
+                    setTimeout(() => startNewRound(data.code), 5000);
+                }
+            }
+        } else {
+            // Not all votes are in, just send an update
+            io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
+        }
+    });
+
     socket.on('initiateVoteToEnd', (data) => {
         const game = games[data.code];
         const player = game.players.find(p => p.id === socket.id);
@@ -448,13 +500,13 @@ io.on('connection', (socket) => {
 
         game.voteToEndState.inProgress = true;
         game.voteToEndState.initiatorName = player.name;
-        game.voteToEndState.votes = { [socket.id]: 'yes' }; // Initiator automatically votes yes
+        game.voteToEndState.votes = { [socket.id]: 'yes' };
 
         io.to(data.code).emit('voteToEndStarted', { initiatorName: player.name });
         io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
 
-    socket.on('castVote', (data) => { // data: { code, vote: 'yes'/'no' }
+    socket.on('castVote', (data) => {
         const game = games[data.code];
         if (!game || !game.voteToEndState.inProgress || game.voteToEndState.votes[socket.id]) return;
 
@@ -464,16 +516,12 @@ io.on('connection', (socket) => {
         const totalVotes = Object.keys(game.voteToEndState.votes).length;
 
         if (data.vote === 'no') {
-            // A single 'no' vote ends the attempt
             io.to(data.code).emit('voteToEndResult', { passed: false, reason: 'The vote was not unanimous.' });
             game.voteToEndState = { inProgress: false, initiatorName: null, votes: {} };
         } else if (totalVotes === activePlayers.length) {
-            // All players have voted, and all votes were 'yes'
             const finalWinner = getActivePlayers(game).reduce((prev, current) => (prev.score > current.score) ? prev : current);
             endGame(game.code, `The players have unanimously voted to end the game!`, finalWinner);
-            // No need to reset state here, endGame handles it
         }
-        // Always update the game state to show vote progress
         io.to(data.code).emit('gameUpdate', getSerializableGameState(game));
     });
 
