@@ -1,0 +1,56 @@
+
+@import "_variables.css";
+
+.error {
+    color: var(--error-color);
+    margin-top: var(--spacing-medium);
+    min-height: 20px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.w-100 {
+    width: 100%;
+}
+
+.mb-1 {
+    margin-bottom: var(--spacing-small);
+}
+
+.mb-2 {
+    margin-bottom: var(--spacing-medium);
+}
+
+.mb-3 {
+    margin-bottom: var(--spacing-large);
+}
+
+.mt-1 {
+    margin-top: var(--spacing-small);
+}
+
+.mt-2 {
+    margin-top: var(--spacing-medium);
+}
+
+.mt-3 {
+    margin-top: var(--spacing-large);
+}

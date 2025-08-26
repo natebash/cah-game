@@ -68,7 +68,7 @@ To run this project locally, you will need [Node.js](https://nodejs.org/) and np
 
 - **Backend:** Node.js, Express
 - **Real-time Communication:** Socket.IO
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript
+- **Frontend:** React.js, HTML5, CSS3
 
 ## ⚖️ Disclaimer
 
