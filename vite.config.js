@@ -16,12 +16,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/socket.io': {
-        target: 'ws://localhost:3001',
+        target: 'ws://localhost:3000',
         ws: true,
         changeOrigin: true
       },
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

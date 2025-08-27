@@ -162,8 +162,47 @@ function PlayerPage() {
   }
 
   const me = gameState.players?.find(p => p.id === socket.id);
+  const [playerName, setPlayerName] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+
+  const handleJoinGame = useCallback(() => {
+    if (socket && gameCode && playerName.trim() !== '') {
+      setIsJoining(true);
+      socket.emit('player:joinGame', { gameCode, playerName: playerName.trim() });
+    } else {
+      showNotification('Please enter a valid name.', 'error');
+    }
+  }, [socket, gameCode, playerName, showNotification]);
+
+  useEffect(() => {
+    if (me) {
+      setIsLoading(false);
+      setIsJoining(false); // Reset joining state if player is now found
+    }
+  }, [me]);
+
   if (!me) {
-    return <div>You are not in this game. Redirecting...</div>;
+    if (isJoining) {
+      return <div>Joining game...</div>;
+    }
+    return (
+      <div className={`${styles.container} ${styles['player-view']}>
+        <div id="join-game-area" className={styles['join-game-area']}>
+          <h2>Join Game: {gameCode}</h2>
+          <input
+            type="text"
+            id="player-name-input"
+            placeholder="Enter your name"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            maxLength="20"
+          />
+          <button id="join-game-btn" className={styles.button} onClick={handleJoinGame} disabled={playerName.trim() === ''}>
+            Join Game
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const isHost = gameState.hostId === socket.id;

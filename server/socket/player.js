@@ -6,15 +6,15 @@ const path = require('path');
 const { addToQueue } = require('../GameQueue');
 
 module.exports = (io, socket) => {
-    socket.on('joinGame', (data) => {
-        addToQueue(data.code, () => {
-            const game = games[data.code];
+    socket.on('player:joinGame', (data) => {
+        addToQueue(data.gameCode, () => {
+            const game = games[data.gameCode];
             if (!game) {
                 return socket.emit('errorMsg', 'Game not found.');
             }
-            socket.gameCode = data.code;
+            socket.gameCode = data.gameCode;
 
-            const existingPlayer = game.players.find(p => p.name.toLowerCase() === data.name.toLowerCase());
+            const existingPlayer = game.players.find(p => p.name.toLowerCase() === data.playerName.toLowerCase());
             if (existingPlayer && existingPlayer.id !== socket.id) {
                 if (existingPlayer.disconnected) {
                     // Reconnecting player
@@ -24,11 +24,11 @@ module.exports = (io, socket) => {
                         clearTimeout(existingPlayer.disconnectTimeout);
                         existingPlayer.disconnectTimeout = null;
                     }
-                    socket.emit('joinSuccess', { name: existingPlayer.name, token: existingPlayer.token, code: data.code });
+                    socket.emit('joinSuccess', { name: existingPlayer.name, token: existingPlayer.token, code: data.gameCode });
                     broadcastGameUpdate(io, game);
                     return;
                 } else if (data.token === game.hostToken) {
-                    socket.emit('joinSuccess', { name: existingPlayer.name, token: existingPlayer.token, code: data.code });
+                    socket.emit('joinSuccess', { name: existingPlayer.name, token: existingPlayer.token, code: data.gameCode });
                     socket.emit('gameUpdate', getSerializableGameState(game, socket.id));
                     return;
                 }
@@ -38,7 +38,7 @@ module.exports = (io, socket) => {
             const playerToken = crypto.randomBytes(16).toString('hex');
             const player = { 
                 id: socket.id, 
-                name: data.name, 
+                name: data.playerName, 
                 score: 0, 
                 hand: [], 
                 token: playerToken,
@@ -53,9 +53,9 @@ module.exports = (io, socket) => {
             }
             
             game.players.push(player);
-            socket.join(data.code);
+            socket.join(data.gameCode);
 
-            socket.emit('joinSuccess', { name: player.name, token: player.token, code: data.code });
+            socket.emit('joinSuccess', { name: player.name, token: player.token, code: data.gameCode });
             broadcastGameUpdate(io, game);
         });
     });

@@ -60,7 +60,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: var(--spacing-medium);
+    gap: var(--spacing-large);
     padding: var(--spacing-medium);
 }
 
