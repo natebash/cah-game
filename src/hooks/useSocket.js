@@ -35,6 +35,9 @@ const useSocket = () => {
 
             newSocket.on('gameUpdate', (game) => {
                 console.log('[useSocket] gameUpdate received:', game);
+                if (game.voteToEndState?.inProgress && !gameState.voteToEndState?.inProgress) {
+                    setNotification({ message: `${game.voteToEndState.initiatorName} has proposed ending the game.`, type: 'info', duration: 5000 });
+                }
                 setGameState(game);
             });
 
@@ -60,13 +63,13 @@ const useSocket = () => {
             newSocket.on('joinSuccess', (data) => {
                 console.log('[useSocket] joinSuccess received:', data);
                 sessionStorage.setItem('playerToken', data.token);
-                setRedirect(`/player?game=${data.code}`);
+                // Only redirect to /player if it's not a board connection
+                if (data.name !== 'TV_BOARD') {
+                    setRedirect(`/player?game=${data.code}`);
+                }
             });
 
-            newSocket.on('voteToEndStarted', ({ initiatorName }) => {
-                console.log('[useSocket] voteToEndStarted received. Initiator:', initiatorName);
-                setNotification({ message: `${initiatorName} has proposed ending the game.`, type: 'info', duration: 5000 });
-            });
+            
 
             newSocket.on('voteToEndResult', ({ passed, reason }) => {
                 console.log('[useSocket] voteToEndResult received. Passed:', passed, 'Reason:', reason);

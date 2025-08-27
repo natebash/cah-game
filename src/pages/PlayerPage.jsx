@@ -125,6 +125,10 @@ function PlayerPage() {
     }
   }, [socket, gameState.code]);
 
+  const handleBlankCardClick = useCallback(() => {
+    setIsBlankCardModalOpen(true);
+  }, []);
+
   const createLobbyPlayerListHTML = (players, isHost, myId) => {
     return filterTvBoardPlayers(players)
       .map(player => {
@@ -148,6 +152,10 @@ function PlayerPage() {
       setIsLoading(false);
     }
   }, [gameState.players, socket]);
+
+  useEffect(() => {
+    console.log('[PlayerPage] gameState changed:', gameState);
+  }, [gameState]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -257,6 +265,7 @@ function PlayerPage() {
                   hand={me.hand}
                   selectedCardIndices={selectedCardIndices}
                   handleCardSelect={handleCardSelect}
+                  onBlankCardClick={handleBlankCardClick}
                   pickCount={pickCount}
                   submitted={submitted}
                 />
@@ -305,7 +314,7 @@ function PlayerPage() {
           </div>
         )}
 
-        <Modal isOpen={isVoteToEndModalOpen} onClose={() => setIsVoteToEndModalOpen(false)}>
+        <Modal show={isVoteToEndModalOpen} onClose={() => setIsVoteToEndModalOpen(false)}>
           <h2 id="vote-modal-title">Vote to End Game</h2>
           <p id="vote-modal-text">
             {gameState.voteToEndState?.initiatorName} has proposed ending the game. A unanimous 'Yes' vote is required.
@@ -316,7 +325,7 @@ function PlayerPage() {
           </div>
         </Modal>
 
-        <Modal isOpen={isBlankCardModalOpen} onClose={() => setIsBlankCardModalOpen(false)}>
+        <Modal show={isBlankCardModalOpen} onClose={() => setIsBlankCardModalOpen(false)}>
           <h2>Write Your Own Card</h2>
           <p>Enter the text for your custom white card.</p>
           <textarea

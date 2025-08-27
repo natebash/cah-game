@@ -89,3 +89,6 @@ Desktop.ini
 # Vite
 .vite/
 dist/
+
+# Documentation
+PRD.md

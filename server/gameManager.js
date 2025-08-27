@@ -90,6 +90,8 @@ function firstRound(gameCode) {
             game.currentCzar = activePlayers[game.czarIndex].id;
         } else {
             game.currentCzar = null; // No czar in democratic mode
+            const shuffledPlayers = shuffle(activePlayers);
+            game.tieBreakerId = shuffledPlayers[0].id;
         }
 
         // Draw new black card
@@ -160,6 +162,8 @@ function startNewRound(gameCode) {
             game.currentCzar = activePlayers[game.czarIndex].id;
         } else {
             game.currentCzar = null; // No czar in democratic mode
+            const shuffledPlayers = shuffle(activePlayers);
+            game.tieBreakerId = shuffledPlayers[0].id;
         }
 
         // Draw new black card

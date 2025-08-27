@@ -113,7 +113,7 @@ module.exports = (io, socket) => {
             const player = game ? game.players.find(p => p.id === socket.id) : null;
             const { submissionOwnerId } = data;
 
-            if (!game || !player || !game.isDemocratic || game.state !== 'voting' || game.votes[socket.id] || socket.id === submissionOwnerId) {
+            if (!game || !player || !game.isDemocratic || game.state !== 'voting' || game.votes[socket.id] || socket.id === submissionOwnerId || player.isBoard) {
                 return;
             }
 
@@ -122,6 +122,8 @@ module.exports = (io, socket) => {
                 acc[id] = (acc[id] || 0) + 1;
                 return acc;
             }, {});
+
+            broadcastGameUpdate(io, game);
 
             const activePlayers = getActivePlayers(game);
 
@@ -146,9 +148,19 @@ module.exports = (io, socket) => {
                 }
 
                 if (isTie || !winningPlayerId) {
-                    game.roundWinnerInfo = { name: "It's a tie!", sentence: "No points awarded." };
-                    broadcastGameUpdate(io, game);
-                    setTimeout(() => startNewRound(data.code), 5000);
+                    const tieBreakerVote = game.votes[game.tieBreakerId];
+                    if (tieBreakerVote && voteCounts[tieBreakerVote] === maxVotes) {
+                        winningPlayerId = tieBreakerVote;
+                        const winningCards = game.submissions[winningPlayerId];
+                        if (!winningCards) {
+                            return;
+                        }
+                        handleRoundWinner(data.code, winningPlayerId, winningCards);
+                    } else {
+                        game.roundWinnerInfo = { name: "It's a tie!", sentence: "No points awarded." };
+                        broadcastGameUpdate(io, game);
+                        setTimeout(() => startNewRound(data.code), 5000);
+                    }
                 } else {
                     const winningCards = game.submissions[winningPlayerId];
                     if (!winningCards) {
@@ -156,8 +168,6 @@ module.exports = (io, socket) => {
                     }
                     handleRoundWinner(data.code, winningPlayerId, winningCards);
                 }
-            } else {
-                broadcastGameUpdate(io, game);
             }
         });
     });

@@ -15,7 +15,6 @@ module.exports = (io, socket) => {
             game.voteToEndState.initiatorName = player.name;
             game.voteToEndState.votes = { [socket.id]: 'yes' };
 
-            io.to(data.code).emit('voteToEndStarted', { initiatorName: player.name });
             broadcastGameUpdate(io, game);
         });
     });

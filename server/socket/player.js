@@ -43,7 +43,8 @@ module.exports = (io, socket) => {
                 hand: [], 
                 token: playerToken,
                 disconnected: false,
-                disconnectTimeout: null
+                disconnectTimeout: null,
+                isBoard: data.isBoard || false
             };
 
             if (data.token && data.token === game.hostToken && !game.hostId) {
@@ -91,7 +92,7 @@ module.exports = (io, socket) => {
             }
             const sanitizedText = escapeHtml(cardText.trim());
 
-            const cardsPath = path.join(__dirname, '..', 'server', 'data', 'cards.json');
+            const cardsPath = path.join(__dirname, '..', '..', 'server', 'data', 'cards.json');
             try {
                 const fileContent = fs.readFileSync(cardsPath, 'utf8');
                 const data = JSON.parse(fileContent);

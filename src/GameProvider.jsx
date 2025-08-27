@@ -103,7 +103,6 @@ export function GameProvider({ children }) {
       let isBoard = false;
 
       if (location.pathname.includes('/board')) {
-        nameToJoin = 'TV_BOARD';
         isBoard = true;
       }
 

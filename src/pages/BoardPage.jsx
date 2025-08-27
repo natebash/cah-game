@@ -10,7 +10,6 @@ function BoardPage() {
   const { socket, gameState, joinGame, showNotification } = useGame();
   const [searchParams] = useSearchParams();
   const gameCode = searchParams.get('game');
-  const [czarSelection, setCzarSelection] = useState(null);
 
   const qrCodeRef = useRef(null);
 
@@ -41,12 +40,11 @@ function BoardPage() {
     const activePlayers = filterTvBoardPlayers(players).filter(p => p.id !== currentCzar);
 
     if (state === 'playing' || state === 'judging' || state === 'voting') {
-      if (state === 'judging' || state === 'voting') {
-        const submissionsToRender = state === 'voting' && (shuffledSubmissions || []).length > 0 ? (shuffledSubmissions || []) : Object.entries(submissions || {});
+        const submissionsToRender = Object.entries(submissions || {});
 
         return submissionsToRender.map(([playerId, submission]) => {
-          const isSelected = czarSelection && JSON.stringify(czarSelection) === JSON.stringify(submission);
-          const isSelectable = state === 'judging';
+          const isSelected = false;
+          const isSelectable = false;
           
           const containerClasses = [
               styles['card-group-container'],
@@ -58,7 +56,6 @@ function BoardPage() {
               <div 
                   key={playerId} 
                   className={containerClasses}
-                  onClick={() => isSelectable && setCzarSelection(submission)}
               >
                   <div className={styles['card-group']}>
                       {submission.map((cardText, cardIndex) => (
@@ -73,26 +70,6 @@ function BoardPage() {
               </div>
           );
       });
-      } else {
-        return activePlayers.map(player => {
-          const submission = submissions[player.id];
-          if (submission) {
-            return (
-              <div key={player.id} className={styles['card-group-container']}>
-                <div className={styles['card-group']}>
-                  {submission.map((cardText, cardIndex) => (
-                    <Card key={cardIndex} text={cardText} type="white" />
-                  ))}
-                </div>
-              </div>
-            );
-          } else {
-            return (
-              <Card key={player.id} type="white" back={true} />
-            );
-          }
-        });
-      }
     }
   };
 
@@ -149,6 +126,10 @@ function BoardPage() {
     );
   };
 
+  useEffect(() => {
+    console.log('[BoardPage] gameState changed:', gameState);
+  }, [gameState]);
+
   if (!gameState || !gameState.code || !socket || !Array.isArray(gameState.players)) {
     return <div>Loading game...</div>;
   }
@@ -162,7 +143,6 @@ function BoardPage() {
 
       <header>
         <div id="game-info">
-          <h1>Game Code: <span id="game-code-display">{gameState.code}</span></h1>
         </div>
         <div id="scoreboard">
           {createBoardScoreboardHTML(gameState.players, gameState.currentCzar)}

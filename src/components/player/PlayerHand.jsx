@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from '../../styles/components.module.css';
 
-const PlayerHand = ({ hand, selectedCardIndices, handleCardSelect, pickCount, submitted }) => {
+const PlayerHand = ({ hand, selectedCardIndices, handleCardSelect, onBlankCardClick, pickCount, submitted }) => {
     const handWithSelection = hand?.map((card, index) => ({
         card,
         index,
@@ -37,10 +37,7 @@ const PlayerHand = ({ hand, selectedCardIndices, handleCardSelect, pickCount, su
                             disabled={isDisabled}
                             onClick={() => {
                                 if (isBlank) {
-                                    if (pickCount > 1 && !window.confirm(`This black card requires ${pickCount} answers. Submitting a blank card will only use your one custom answer. Continue?`)) {
-                                        return;
-                                    }
-                                    // setIsBlankCardModalOpen(true); // This will be handled by the parent component
+                                    onBlankCardClick();
                                 } else {
                                     handleCardSelect(index);
                                 }
