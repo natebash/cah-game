@@ -91,4 +91,4 @@ Desktop.ini
 dist/
 
 # Documentation
-PRD.md
+PRD.md"node_modules/" 
