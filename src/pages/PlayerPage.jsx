@@ -150,20 +150,21 @@ function PlayerPage() {
   };
 
   useEffect(() => {
-    if (socket && gameState.players?.find(p => p.id === socket.id)) {
-      setIsLoading(false);
-    }
-  }, [gameState.players, socket]);
-
-  useEffect(() => {
     console.log('[PlayerPage] gameState changed:', gameState);
   }, [gameState]);
+
+  const me = gameState.players?.find(p => p.id === socket.id);
+
+  useEffect(() => {
+    if (me) {
+      setIsLoading(false);
+      setIsJoining(false); // Reset joining state if player is now found
+    }
+  }, [me]);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
-
-  const me = gameState.players?.find(p => p.id === socket.id);
 
   const handleJoinGame = useCallback(() => {
     if (socket && gameCode && playerName.trim() !== '') {
