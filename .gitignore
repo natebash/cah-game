@@ -91,5 +91,7 @@ Desktop.ini
 dist/
 
 # Documentation
-PRD.md"node_modules/" 
+"PRD.md"
+"node_modules/" 
 "package-lock.json" 
+
