@@ -4,23 +4,23 @@ A web-based, real-time multiplayer card game inspired by the classic party game,
 
 ## ✨ Features
 
-- **Real-time Multiplayer:** Gameplay is synchronized for all players using WebSockets (Socket.IO).
-- **Game Rooms:** Create a game and invite friends with a unique 4-letter game code.
-- **Dedicated Score Board View:** A special view designed for a central TV or shared screen, showing the black card, submissions, and scoreboard. You can now easily access this view by clicking "Create Score Board" on the main menu.
-- **Player & Host Roles:** The first player to create a game is the host and can start the game and kick players from the lobby.
-- **Card Czar Rotation:** The role of the judge (Card Czar) automatically rotates to the next player each round.
-- **Score Tracking:** The game automatically keeps score and declares a winner at the end.
-- **Two Game Modes:**
-  - **Score Limit:** The game ends when a player reaches a predefined score.
-  - **Endless Mode:** The game continues until a vote is initiated and all active players unanimously agree to end it.
-- **Democratic Mode:** Players vote on submissions instead of a single Card Czar choosing the winner.
-- **Player Reconnection:** If a player's connection drops, they have a 2-minute window to rejoin the game with their score and cards intact.
-- **Kicking Players:** The host can remove players from the lobby before the game begins.
-- **Custom Cards:** Players can submit their own white cards during gameplay.
+-   **Real-time Multiplayer:** Gameplay is synchronized for all players using WebSockets (Socket.IO).
+-   **Game Rooms:** Create a game and invite friends with a unique 4-letter game code.
+-   **Dedicated Score Board View:** A special view designed for a central TV or shared screen, showing the black card, submissions, and scoreboard. You can now easily access this view by clicking "Create Score Board" on the main menu.
+-   **Player & Host Roles:** The first player to create a game is the host and can start the game and kick players from the lobby.
+-   **Card Czar Rotation:** The role of the judge (Card Czar) automatically rotates to the next player each round.
+-   **Score Tracking:** The game automatically keeps score and declares a winner at the end.
+-   **Two Game Modes:**
+    -   **Score Limit:** The game ends when a player reaches a predefined score.
+    -   **Endless Mode:** The game continues until a vote is initiated and all active players unanimously agree to end it.
+-   **Democratic Mode:** Players vote on submissions instead of a single Card Czar choosing the winner.
+-   **Player Reconnection:** If a player's connection drops, they have a 2-minute window to rejoin the game with their score and cards intact.
+-   **Kicking Players:** The host can remove players from the lobby before the game begins.
+-   **Custom Cards:** Players can submit their own white cards during gameplay.
 
 ## 🚀 Setup and Installation
 
-To run this project locally, you will need [Node.js](https://nodejs.org/) and npm installed on your machine.
+To run this project, you will need [Node.js](https://nodejs.org/) and npm installed on your machine.
 
 1.  **Clone the repository (or download the files):**
     ```bash
@@ -29,52 +29,65 @@ To run this project locally, you will need [Node.js](https://nodejs.org/) and np
     ```
 
 2.  **Install dependencies:**
-    This project uses `express` and `socket.io` for the backend, and `react` with `vite` for the frontend. Install them by running:
     ```bash
     npm install
     ```
 
-3.  **Start the server:**
-    ```bash
-    node server.js
-    ```
+3.  **Run the application:**
+    There are two ways to run the application:
 
-4.  **Start the frontend development server:**
-    ```bash
-    npm run dev
-    ```
+    -   **Development Mode:**
+        ```bash
+        npm run dev
+        ```
+        This starts both the backend server and the frontend development server. The frontend will be available at `http://localhost:5173`. This mode is recommended for development as it provides hot module replacement.
 
-5.  **Play the game:**
-    Open your web browser and navigate to `http://localhost:5173` (or whatever port Vite serves on, usually 5173).
+    -   **Production Mode:**
+        ```bash
+        npm run build
+        npm start
+        ```
+        This will first build the frontend application and then start the backend server. The application will be available at `http://localhost:3001`.
 
-## 룰 How to Play
+## 🎲 How to Play
 
-1.  **Create or Join:**
-    - One player selects "Create Game" to start a new lobby and becomes the host.
-    - Other players select "Join Game," enter their name, and input the 4-letter game code provided by the host.
-    - Optionally, set up a score board on a laptop connected to a TV to display the main game board for everyone to see by clicking "Create Score Board" and entering the game code.
+1.  **Start a New Game:**
+    - Open your browser and navigate to the appropriate address for the mode you are using (`http://localhost:5173` for development, `http://localhost:3001` for production).
+    - Click "Create Game".
+    - Enter your name and choose the game settings (winning score, endless mode, or democratic mode).
+    - You'll be taken to the game lobby, where you'll see your unique 4-letter game code.
 
-2.  **The Goal:**
-    - The goal is to create the funniest or most fitting combination of white answer cards for the black question card.
+2.  **Join a Game:**
+    - Other players can join by navigating to the same address.
+    - Click "Join Game".
+    - Enter their name and the 4-letter game code.
 
-3.  **Game Flow:**
-    - Each round, one player is designated the **Card Czar** (in standard mode). They do not play any white cards.
-    - The other players choose the required number of white cards from their hand to answer the prompt on the black card.
-    - The submissions are shown anonymously.
-    - **Standard Mode:** The Card Czar reads the combinations aloud and picks their favorite.
-    - **Democratic Mode:** All players (except the one who submitted the black card) vote for their favorite submission. The submission with the most votes wins.
-    - The player who submitted the winning card(s) receives one point.
-    - The role of Card Czar rotates (in standard mode), or a new round begins (in democratic mode).
+3.  **Set up a Score Board:**
+    - For a party setting, you can use a separate screen as a dedicated scoreboard.
+    - On the device connected to the shared screen, navigate to the game's address.
+    - Click "Create Score Board" and enter the game code.
 
-4.  **Winning the Game:**
-    - If playing to a score limit, the first player to reach that score wins.
-    - In Endless Mode, the game continues until players unanimously vote to end it. The player with the highest score at that time is the winner.
+4.  **Game Flow:**
+    - The game follows the standard rules of Cards Against Humanity.
+    - In **Standard Mode**, a Card Czar chooses the winning card.
+    - In **Democratic Mode**, all players vote for their favorite submission.
 
-## 🛠️ Technology Stack
+## 🛠️ Development
+
+The project is divided into a backend server and a frontend client.
+
+-   **Backend:** The backend is an Express server that handles game logic and communication using Socket.IO. It runs on port `3001`.
+-   **Frontend:** The frontend is a React application built with Vite. The development server runs on port `5173` and proxies API and socket requests to the backend server. In production, the frontend is built and served by the backend server.
+
+The `npm run dev` command uses `npm-run-all` to start both servers concurrently.
+
+## 💻 Technology Stack
 
 -   **Backend:** Node.js, Express
--   **Real-time Communication:** Socket.IO
--   **Frontend:** React.js, Vite, HTML5, CSS3
+-   **Frontend:** React.js, Vite
+-   **Real-time Communication:** Socket.IO, Socket.IO Client
+-   **Routing:** React Router
+-   **Utilities:** npm-run-all, QR Code React
 
 ## ⚖️ Disclaimer
 

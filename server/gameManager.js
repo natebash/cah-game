@@ -232,7 +232,10 @@ function checkSubmissionsAndAdvance(gameCode) {
         const activePlayers = getActivePlayers(game);
         const requiredSubmissions = game.isDemocratic ? activePlayers.length : activePlayers.length - 1;
 
+        console.log(`[checkSubmissionsAndAdvance] Game ${gameCode}: isDemocratic: ${game.isDemocratic}, current submissions: ${Object.keys(game.submissions).length}, active players: ${activePlayers.length}, required submissions: ${requiredSubmissions}`);
+
         if (Object.keys(game.submissions).length >= requiredSubmissions) {
+            console.log(`[checkSubmissionsAndAdvance] Game ${gameCode}: All submissions received. Transitioning to ${game.isDemocratic ? 'voting' : 'judging'} state.`);
             // CHANGE: Transition to 'voting' state in democratic mode
             game.state = game.isDemocratic ? 'voting' : 'judging';
             game.votes = {}; // Clear previous votes
