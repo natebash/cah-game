@@ -43,14 +43,14 @@ function PlayerPage() {
     if (gameState.state !== 'judging') {
       const me = gameState.players?.find(p => p.id === socket?.id);
       const submitted = me && !!gameState.submissions[me.id];
-      if (!submitted) {
+      if (!submitted && selectedCardIndices.length > 0) {
         setSelectedCardIndices([]);
       }
     }
-    if (gameState.state === 'playing' && czarSelection) {
+    if (gameState.state === 'playing' && czarSelection !== null) {
       setCzarSelection(null);
     }
-  }, [gameState.state, gameState.players, gameState.submissions, socket?.id, czarSelection]);
+  }, [gameState.state, gameState.players, gameState.submissions, socket?.id, czarSelection, selectedCardIndices]);
 
   const handleStartGame = useCallback(() => {
     if (socket && gameCode) {
