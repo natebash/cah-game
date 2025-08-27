@@ -186,7 +186,7 @@ function PlayerPage() {
       return <div>Joining game...</div>;
     }
     return (
-      <div className={`${styles.container} ${styles['player-view']}>
+      <div className={`${styles.container} ${styles['player-view']}`}>
         <div id="join-game-area" className={styles['join-game-area']}>
           <h2>Join Game: {gameCode}</h2>
           <input
