@@ -21,6 +21,8 @@ function PlayerPage() {
   const [isBlankCardModalOpen, setIsBlankCardModalOpen] = useState(false);
   const [isVoteToEndModalOpen, setIsVoteToEndModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [playerName, setPlayerName] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     if (gameState.voteToEndState?.inProgress) {
@@ -162,8 +164,6 @@ function PlayerPage() {
   }
 
   const me = gameState.players?.find(p => p.id === socket.id);
-  const [playerName, setPlayerName] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
 
   const handleJoinGame = useCallback(() => {
     if (socket && gameCode && playerName.trim() !== '') {
